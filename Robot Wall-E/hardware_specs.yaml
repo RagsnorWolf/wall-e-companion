@@ -1,0 +1,95 @@
+# Hardware Specs — Wall-E Robot
+# Agus: completá con valores reales y subí a repo
+
+mcu:
+  type: "esp32-s3"              # esp32-s3 | esp32 | rp2040
+  port: "COM3"                  # Windows: COM3, Linux: /dev/ttyUSB0, Mac: /dev/tty.usbserial-XXXX
+  baudrate: 115200
+  protocol: "json_serial"       # json_serial | mqtt | protobuf
+
+servos:
+  - id: "head_pan"
+    channel: 0
+    min_pulse: 500
+    max_pulse: 2500
+    angle_range: [-90, 90]
+    default_angle: 0
+    inverted: false
+  - id: "head_tilt"
+    channel: 1
+    min_pulse: 500
+    max_pulse: 2500
+    angle_range: [-45, 45]
+    default_angle: 0
+    inverted: false
+  - id: "eye_L"
+    channel: 2
+    min_pulse: 500
+    max_pulse: 2500
+    angle_range: [0, 100]
+    default_angle: 50
+    inverted: false
+  - id: "eye_R"
+    channel: 3
+    min_pulse: 500
+    max_pulse: 2500
+    angle_range: [0, 100]
+    default_angle: 50
+    inverted: false
+  - id: "body_lean"
+    channel: 4
+    min_pulse: 500
+    max_pulse: 2500
+    angle_range: [-30, 30]
+    default_angle: 0
+    inverted: false
+  - id: "arm_L"
+    channel: 5
+    min_pulse: 500
+    max_pulse: 2500
+    angle_range: [-90, 90]
+    default_angle: 0
+    inverted: false
+  - id: "arm_R"
+    channel: 6
+    min_pulse: 500
+    max_pulse: 2500
+    angle_range: [-90, 90]
+    default_angle: 0
+    inverted: false
+
+camera:
+  type: "usb"                   # usb | csi | ip
+  device_index: 0               # 0, 1, 2... o URL RTSP
+  width: 640
+  height: 480
+  fps: 30
+
+audio:
+  mic:
+    type: "i2s"                 # i2s | usb | jack
+    sample_rate: 16000
+    channels: 1
+    i2s_pins: {ws: 3, sck: 4, sd: 5}   # GPIO pins ESP32-S3
+  speaker:
+    type: "i2s"                 # i2s | pwm | jack
+    sample_rate: 22050
+    i2s_pins: {bclk: 6, lrclk: 7, din: 8}
+
+power:
+  battery_type: "liion_2s"
+  voltage_monitor: "ina219"     # ina219 | adc_divider | none
+  adc_pin: 4                    # si usa divisor resistivo
+  min_voltage: 6.5
+  max_voltage: 8.4
+  low_alert_voltage: 7.0
+
+sensors:
+  tof: "vl53l0x"                # vl53l0x | hcsr04 | none
+  imu: "mpu6050"                # mpu6050 | bmi270 | none
+  temp: "internal"              # internal | ds18b20 | none
+
+firmware:
+  version: "0.1.0"
+  build_date: "2026-10-22"
+  features: ["servo_interpolation", "battery_monitor", "calibration_nvs"]
