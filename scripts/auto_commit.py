@@ -17,6 +17,7 @@ from watchdog.events import FileSystemEventHandler
 DEFAULT_INTERVAL = 30
 IGNORE = {".git", "__pycache__", "*.pyc", ".venv", "venv", "env", "node_modules", ".next", "dist", "build", "*.log", ".pytest_cache", ".mypy_cache", ".ruff_cache", "*.tmp", "*.swp", "*.swo", ".DS_Store", "Thumbs.db"}
 
+Path("logs").mkdir(exist_ok=True)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=[logging.StreamHandler(), logging.FileHandler("logs/auto_commit.log")])
 logger = logging.getLogger(__name__)
 
