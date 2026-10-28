@@ -1,0 +1,69 @@
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# ---------- Node ----------
+node_modules/
+dist/
+build/
+.next/
+out/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------- Datos locales del cerebro ----------
+"Modelo AI"/memory.db
+"Modelo AI"/smoke_memory.db
+"Modelo AI"/memory.db-journal
+"Modelo AI"/memory.db-wal
+"Modelo AI"/datos/
+"Modelo AI"/Modelfile
+
+# ---------- Credenciales (NUNCA al repo) ----------
+"Modelo AI"/credentials.json
+"Modelo AI"/token.json
+.env
+.env.local
+*.pem
+*.key
+
+# ---------- Modelos y binarios grandes ----------
+*.safetensors
+*.bin
+*.gguf
+*.pt
+*.pth
+*.onnx
+"Modelo AI"/checkpoints/
+"Modelo AI"/data/
+
+# ---------- Media / CAD ----------
+*.mp4
+*.mov
+*.wav
+*.mp3
+*.stl
+*.step
+*.f3d
+*.kicad_pcb
+*.kicad_sch
+
+# ---------- Sistema ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- Logs ----------
+logs/
+*.log
