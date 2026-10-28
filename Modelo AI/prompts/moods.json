@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "description": "Estados emocionales de WALL-E. Cada mood define comportamiento expresivo. Por ahora se usan para la UI y para modular el tono; el hardware final los mapea a LEDs/pantalla/servos.",
+  "default": "idle",
+  "moods": {
+    "idle": {
+      "label": "Reposo",
+      "emoji": "😐",
+      "voice": { "rate": 180, "pitch": 1.0 },
+      "ttl_seconds": 0,
+      "behaviors": ["parpadeo_lento", "mirada_errante"]
+    },
+    "curious": {
+      "label": "Curioso",
+      "emoji": "🤔",
+      "voice": { "rate": 195, "pitch": 1.1 },
+      "ttl_seconds": 15,
+      "behaviors": ["inclina_cabeza", "acerca"]
+    },
+    "happy": {
+      "label": "Contento",
+      "emoji": "😄",
+      "voice": { "rate": 200, "pitch": 1.15 },
+      "ttl_seconds": 10,
+      "behaviors": ["rebote", "giro_rapido"]
+    },
+    "thinking": {
+      "label": "Pensando",
+      "emoji": "💭",
+      "voice": { "rate": 160, "pitch": 0.95 },
+      "ttl_seconds": 0,
+      "behaviors": ["mirada_arriba", "pausa"]
+    },
+    "sad": {
+      "label": "Triste",
+      "emoji": "😢",
+      "voice": { "rate": 150, "pitch": 0.9 },
+      "ttl_seconds": 20,
+      "behaviors": ["mirada_abajo", "quieto"]
+    },
+    "alert": {
+      "label": "Alerta",
+      "emoji": "⚠️",
+      "voice": { "rate": 205, "pitch": 1.1 },
+      "ttl_seconds": 8,
+      "behaviors": ["ojos_abiertos", "freno"]
+    },
+    "listening": {
+      "label": "Escuchando",
+      "emoji": "👂",
+      "voice": { "rate": 180, "pitch": 1.0 },
+      "ttl_seconds": 0,
+      "behaviors": ["quieto", "atento"]
+    },
+    "speaking": {
+      "label": "Hablando",
+      "emoji": "🗣️",
+      "voice": { "rate": 180, "pitch": 1.0 },
+      "ttl_seconds": 0,
+      "behaviors": ["gesticula"]
+    },
+    "sleeping": {
+      "label": "Durmiendo",
+      "emoji": "😴",
+      "voice": { "rate": 140, "pitch": 0.85 },
+      "ttl_seconds": 0,
+      "behaviors": ["parpadeo_cerrado", "respira_lento"]
+    },
+    "scared": {
+      "label": "Asustado",
+      "emoji": "😨",
+      "voice": { "rate": 210, "pitch": 1.2 },
+      "ttl_seconds": 6,
+      "behaviors": ["retrocede", "temblor"]
+    }
+  }
+}

@@ -1,0 +1,12 @@
+# Núcleo — obligatorio
+pyserial>=3.5
+opencv-python>=4.9
+numpy>=1.26
+
+# Voz (opcional, para probar en la PC)
+pyttsx3>=2.90
+
+# Google Calendar (opcional)
+google-api-python-client>=2.100
+google-auth-httplib2>=0.1
+google-auth-oauthlib>=1.2
