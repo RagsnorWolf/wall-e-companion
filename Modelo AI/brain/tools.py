@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable
 
+from brain.computer import Computer
 from brain.memory import Memory
 from hardware.esp32_link import Esp32Link
 from vision.reflex import Camera, probe_color
@@ -21,10 +22,17 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "datos"
 
 
 class Tools:
-    def __init__(self, link: Esp32Link, memory: Memory, camera: Camera) -> None:
+    def __init__(
+        self,
+        link: Esp32Link,
+        memory: Memory,
+        camera: Camera,
+        computer: Computer | None = None,
+    ) -> None:
         self.link = link
         self.memory = memory
         self.camera = camera
+        self.computer = computer or Computer()
         self.started_at = time.time()
         self._handlers: dict[str, Callable[..., dict[str, Any]]] = {
             "mover": self.mover,
@@ -34,6 +42,7 @@ class Tools:
             "recordar": self.recordar,
             "buscar_memoria": self.buscar_memoria,
             "agendar": self.agendar,
+            "accion_pc": self.accion_pc,
         }
 
     # ------------------------------------------------------------- esquemas
@@ -43,16 +52,13 @@ class Tools:
                 "type": "function",
                 "function": {
                     "name": "mover",
-                    "description": (
-                        "Mueve las orugas del robot. Velocidad de -255 a 255. "
-                        "Duración máxima 3 segundos. Frena solo al terminar."
-                    ),
+                    "description": "Mueve las orugas. Avanzar 150,150. Girar izq -150,150.",
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "oruga_izquierda": {"type": "integer", "minimum": -255, "maximum": 255},
-                            "oruga_derecha": {"type": "integer", "minimum": -255, "maximum": 255},
-                            "segundos": {"type": "number", "minimum": 0.1, "maximum": 3.0},
+                            "oruga_izquierda": {"type": "integer"},
+                            "oruga_derecha": {"type": "integer"},
+                            "segundos": {"type": "number"},
                         },
                         "required": ["oruga_izquierda", "oruga_derecha", "segundos"],
                     },
@@ -62,7 +68,7 @@ class Tools:
                 "type": "function",
                 "function": {
                     "name": "detener",
-                    "description": "Frena las orugas inmediatamente.",
+                    "description": "Frena las orugas.",
                     "parameters": {"type": "object", "properties": {}},
                 },
             },
@@ -70,7 +76,7 @@ class Tools:
                 "type": "function",
                 "function": {
                     "name": "mirar_color",
-                    "description": "Mira con la cámara y dice si hay un color y dónde está.",
+                    "description": "Mira si hay un color y dónde está.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -87,7 +93,7 @@ class Tools:
                 "type": "function",
                 "function": {
                     "name": "estado_robot",
-                    "description": "Devuelve conexión, modo, tiempo encendido y último movimiento.",
+                    "description": "Conexión, uptime y memoria.",
                     "parameters": {"type": "object", "properties": {}},
                 },
             },
@@ -95,7 +101,7 @@ class Tools:
                 "type": "function",
                 "function": {
                     "name": "recordar",
-                    "description": "Guarda un dato importante para siempre.",
+                    "description": "Guarda un dato para siempre.",
                     "parameters": {
                         "type": "object",
                         "properties": {"texto": {"type": "string"}},
@@ -107,7 +113,7 @@ class Tools:
                 "type": "function",
                 "function": {
                     "name": "buscar_memoria",
-                    "description": "Busca datos guardados sobre un tema.",
+                    "description": "Busca datos guardados.",
                     "parameters": {
                         "type": "object",
                         "properties": {"consulta": {"type": "string"}},
@@ -119,19 +125,56 @@ class Tools:
                 "type": "function",
                 "function": {
                     "name": "agendar",
-                    "description": (
-                        "Crea un evento. `inicio` en formato ISO local: YYYY-MM-DDTHH:MM. "
-                        "Si no se dice la duración, usar 60."
-                    ),
+                    "description": "Crea un evento. inicio: YYYY-MM-DDTHH:MM.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "titulo": {"type": "string"},
                             "inicio": {"type": "string"},
-                            "duracion_minutos": {"type": "integer", "minimum": 5, "maximum": 480},
+                            "duracion_minutos": {"type": "integer"},
                             "descripcion": {"type": "string"},
                         },
                         "required": ["titulo", "inicio"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "accion_pc",
+                    "description": (
+                        "Hace una acción real en la computadora. Usala cuando pidan "
+                        "abrir un programa, carpeta o web, crear una carpeta o archivo, "
+                        "listar una carpeta o ver el sistema."
+                    ),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "accion": {
+                                "type": "string",
+                                "enum": [
+                                    "abrir_app",
+                                    "abrir_carpeta",
+                                    "abrir_web",
+                                    "crear_carpeta",
+                                    "crear_archivo",
+                                    "listar_carpeta",
+                                    "info_sistema",
+                                ],
+                            },
+                            "destino": {
+                                "type": "string",
+                                "description": (
+                                    "Programa, ruta, URL o nombre. Para crear carpeta "
+                                    "usá solo el nombre, por ejemplo 'proyecto luna'."
+                                ),
+                            },
+                            "contenido": {
+                                "type": "string",
+                                "description": "Texto del archivo, si corresponde.",
+                            },
+                        },
+                        "required": ["accion"],
                     },
                 },
             },
@@ -249,6 +292,12 @@ class Tools:
             "detail": "anotado en la agenda local, Google Calendar no está configurado",
             "evento": entry,
         }
+
+    def accion_pc(
+        self, accion: str, destino: str = "", contenido: str = ""
+    ) -> dict[str, Any]:
+        """Delegado a la capa segura de escritorio."""
+        return self.computer.ejecutar(accion, destino, contenido)
 
 
 def _google_calendar():

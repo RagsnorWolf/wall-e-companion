@@ -32,6 +32,7 @@ class Ollama:
         self.host = host.rstrip("/")
         self.timeout = timeout
         self.keep_alive = keep_alive
+        self.last_metrics: dict[str, Any] = {}
         self.options = {
             "num_ctx": num_ctx,
             "temperature": temperature,
@@ -89,6 +90,14 @@ class Ollama:
         if tools:
             payload["tools"] = tools
         data = self._request("/api/chat", payload)
+        self.last_metrics = {
+            "load_ms": round((data.get("load_duration") or 0) / 1e6),
+            "prompt_tokens": data.get("prompt_eval_count"),
+            "prompt_ms": round((data.get("prompt_eval_duration") or 0) / 1e6),
+            "out_tokens": data.get("eval_count"),
+            "out_ms": round((data.get("eval_duration") or 0) / 1e6),
+            "total_ms": round((data.get("total_duration") or 0) / 1e6),
+        }
         message = data.get("message")
         if not isinstance(message, dict):
             raise OllamaError(f"Respuesta inesperada de Ollama: {data}")

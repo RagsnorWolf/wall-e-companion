@@ -43,7 +43,7 @@ _STOPWORDS = {
 
 
 class Memory:
-    def __init__(self, path: str | Path = "memory.db", max_turns: int = 12) -> None:
+    def __init__(self, path: str | Path = "memory.db", max_turns: int = 4) -> None:
         self.path = str(path)
         self.max_turns = max_turns
         self.db = sqlite3.connect(self.path, check_same_thread=False)

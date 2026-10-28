@@ -23,16 +23,20 @@ yarn-error.log*
 pnpm-debug.log*
 
 # ---------- Datos locales del cerebro ----------
-"Modelo AI"/memory.db
-"Modelo AI"/smoke_memory.db
-"Modelo AI"/memory.db-journal
-"Modelo AI"/memory.db-wal
-"Modelo AI"/datos/
-"Modelo AI"/Modelfile
+Modelo AI/memory.db
+Modelo AI/memory.db-journal
+Modelo AI/memory.db-wal
+Modelo AI/smoke_memory.db
+Modelo AI/datos/
+Modelo AI/Modelfile
+
+# ---------- Configuración local de la cabina ----------
+Pagina Web/cockpit/config.json
+Pagina Web/cockpit/shot*.png
 
 # ---------- Credenciales (NUNCA al repo) ----------
-"Modelo AI"/credentials.json
-"Modelo AI"/token.json
+Modelo AI/credentials.json
+Modelo AI/token.json
 .env
 .env.local
 *.pem

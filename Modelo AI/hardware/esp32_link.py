@@ -91,6 +91,15 @@ class Esp32Link:
         self._connect()
         return self.connected
 
+    def connect(self, port: str) -> bool:
+        """Conecta solo al puerto que pidió el usuario. Nunca autodetecta."""
+        self.port = port.strip()
+        return self.reconnect()
+
+    def disconnect(self) -> None:
+        self.close()
+        self._simulation_reason = "desconectado desde la cabina"
+
     # ------------------------------------------------------------- comandos
     def _write(self, line: str) -> bool:
         if self.serial is None:

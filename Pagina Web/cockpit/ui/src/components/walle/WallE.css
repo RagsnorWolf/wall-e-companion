@@ -1,0 +1,270 @@
+.walle-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(70% 60% at 50% 48%, rgba(242, 166, 60, 0.08), transparent 70%),
+    radial-gradient(45% 40% at 70% 20%, rgba(90, 225, 210, 0.06), transparent 70%),
+    linear-gradient(180deg, rgba(7, 13, 18, 0.2), rgba(3, 7, 10, 0.7));
+}
+
+.walle-stage__grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(126, 240, 226, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(126, 240, 226, 0.055) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(70% 65% at 50% 50%, #000 20%, transparent 80%);
+  opacity: 0.8;
+}
+
+.walle-stage__glow {
+  position: absolute;
+  width: 60%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(242, 180, 90, 0.12), rgba(242, 180, 90, 0.02) 50%, transparent 70%);
+  filter: blur(12px);
+  animation: walleHalo 8s ease-in-out infinite;
+}
+
+@keyframes walleHalo {
+  0%, 100% { transform: scale(1); opacity: 0.75; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+.walle-stage__scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 18%;
+  background: linear-gradient(180deg, transparent, rgba(126, 240, 226, 0.055), transparent);
+  animation: walleScan 7s linear infinite;
+  pointer-events: none;
+  z-index: 3;
+}
+
+@keyframes walleScan {
+  0% { transform: translateY(-30%); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(560%); opacity: 0; }
+}
+
+.walle-svg {
+  position: relative;
+  z-index: 2;
+  width: min(100%, 540px);
+  height: 100%;
+  max-height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 28px 30px rgba(0, 0, 0, 0.55));
+}
+
+.walle-breathe {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: walleBreathe 5.6s ease-in-out infinite;
+}
+
+@keyframes walleBreathe {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50% { transform: translateY(-2px) scaleY(1.004); }
+}
+
+#walle-head {
+  transform-box: view-box;
+  transform-origin: 280px 130px;
+  transition: transform 0.12s linear;
+}
+
+.lid {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: translateY(-105%);
+  animation: walleBlink 6.4s infinite;
+}
+
+@keyframes walleBlink {
+  0%, 93.2%, 100% { transform: translateY(-105%); }
+  94.6%, 96.2% { transform: translateY(0); }
+}
+
+.walle-stage[data-mood="contento"] .lid,
+.walle-stage[data-mood="mimoso"] .lid {
+  animation: none;
+  transform: translateY(-54%);
+}
+
+.walle-stage[data-mood="asustado"] .lid {
+  animation: none;
+  transform: translateY(-102%);
+}
+
+.walle-stage[data-mood="cansado"] .lid {
+  animation: none;
+  transform: translateY(-32%);
+}
+
+.walle-stage[data-mood="aburrido"] .lid {
+  animation: none;
+  transform: translateY(-42%);
+}
+
+.walle-stage[data-mood="asustado"] .eyeball {
+  filter: brightness(1.18) saturate(0.8);
+}
+
+.walle-stage[data-mood="cansado"] .eyeball {
+  filter: brightness(0.72) saturate(0.7);
+}
+
+.walle-stage[data-mood="contento"] .eyeball,
+.walle-stage[data-mood="mimoso"] .eyeball {
+  filter: brightness(1.08) saturate(1.1);
+}
+
+.eye-scan {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.walle-stage.is-thinking .eye-scan {
+  opacity: 1;
+  animation: eyeScan 1.25s linear infinite;
+}
+
+@keyframes eyeScan {
+  from { transform: rotate(0deg); opacity: 0.35; }
+  50% { opacity: 1; }
+  to { transform: rotate(360deg); opacity: 0.35; }
+}
+
+.walle-stage.is-thinking .walle-svg {
+  filter: drop-shadow(0 28px 30px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 18px rgba(126, 240, 226, 0.18));
+}
+
+.walle-chest-led {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.walle-stage.is-speaking .walle-chest-led {
+  animation: chestPulse 0.32s ease-in-out infinite alternate;
+}
+
+@keyframes chestPulse {
+  from { transform: scale(0.92); opacity: 0.7; }
+  to { transform: scale(1.28); opacity: 1; }
+}
+
+.walle-stage.is-speaking .walle-svg {
+  filter: drop-shadow(0 28px 30px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 22px rgba(242, 166, 60, 0.2));
+}
+
+.walle-dust {
+  animation: dustFloat 7s ease-in-out infinite;
+  opacity: 0.35;
+}
+
+@keyframes dustFloat {
+  0%, 100% { transform: translateY(0); opacity: 0.12; }
+  50% { transform: translateY(-22px); opacity: 0.5; }
+}
+
+.walle-plant {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: plantSway 6.8s ease-in-out infinite;
+}
+
+@keyframes plantSway {
+  0%, 100% { transform: rotate(-1.4deg); }
+  50% { transform: rotate(1.8deg); }
+}
+
+.walle-stage__floor {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 7%;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.55), transparent 70%);
+  filter: blur(8px);
+}
+
+.walle-stage__tag {
+  position: absolute;
+  left: 16px;
+  bottom: 12px;
+  color: rgba(126, 240, 226, 0.45);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  z-index: 4;
+}
+
+.walle-hud {
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: rgba(126, 240, 226, 0.45);
+  font-family: var(--font-mono);
+  font-size: 7.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.walle-hud--left {
+  left: 14px;
+  align-items: flex-start;
+}
+
+.walle-hud--left i {
+  display: block;
+  width: 26px;
+  height: 1px;
+  background: rgba(126, 240, 226, 0.28);
+}
+
+.walle-hud--left i:nth-child(3) { width: 40px; }
+.walle-hud--left i:nth-child(4) { width: 16px; }
+.walle-hud--left b { margin-top: auto; color: rgba(242, 180, 90, 0.55); font-weight: 500; }
+
+.walle-hud--right {
+  right: 14px;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.walle-hud--right b {
+  color: rgba(242, 180, 90, 0.8);
+  font-weight: 600;
+  font-size: 9px;
+}
+
+.walle-hud--right em {
+  margin-top: auto;
+  font-style: normal;
+  color: rgba(126, 240, 226, 0.35);
+}
+
+@media (max-width: 1180px) {
+  .walle-hud { display: none; }
+}
+
+@media (max-width: 760px) {
+  .walle-svg { width: min(100%, 430px); }
+}

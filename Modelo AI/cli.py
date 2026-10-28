@@ -115,6 +115,7 @@ def main() -> None:
                 continue
 
             started = time.perf_counter()
+            print("  ...pensando", flush=True)
             reply = agent.respond(text)
             elapsed = time.perf_counter() - started
             print(f"walle> {reply}   [{elapsed:.1f}s]")
