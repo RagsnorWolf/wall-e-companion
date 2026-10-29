@@ -29,10 +29,18 @@ COLOR_RANGES: dict[str, list[tuple[tuple[int, int, int], tuple[int, int, int]]]]
 }
 
 MIN_AREA = 400
+# Un cuadro casi negro con picos aislados suele ser el cartel "sin señal" de
+# una webcam virtual. Si no hay luz repartida, WALL-E no puede ver.
+MIN_BRIGHTNESS = 8.0
+MIN_PEAK = 12.0
 
 
 class Camera:
-    """Wrapper con apertura perezosa. Si no hay cámara, lo dice y no explota."""
+    """Wrapper con apertura perezosa. Si no hay cámara, lo dice y no explota.
+
+    Guarda un estado barato (señal, brillo, tamaño) para que el cerebro sepa si
+    los ojos están conectados sin abrir la cámara en cada charla.
+    """
 
     def __init__(self, index: int = 0, width: int = 320, height: int = 240) -> None:
         self.index = index
@@ -40,9 +48,41 @@ class Camera:
         self.height = height
         self._cap = None
         self._lock = threading.Lock()
+        self._status_lock = threading.Lock()
+        self._status: dict[str, Any] = {
+            "available": False,
+            "signal": False,
+            "brightness": 0.0,
+            "peak": 0.0,
+            "width": 0,
+            "height": 0,
+            "ts": 0.0,
+            "error": "todavía no miré",
+        }
+
+    def _set_status(self, **changes: Any) -> None:
+        with self._status_lock:
+            self._status.update(changes)
+            self._status["ts"] = time.time()
+
+    def status(self, refresh: bool = False, max_age: float = 8.0) -> dict[str, Any]:
+        """Estado de los ojos. Con refresh=True toma una foto si está viejo."""
+        with self._status_lock:
+            snapshot = dict(self._status)
+        stale = not snapshot["ts"] or (time.time() - snapshot["ts"]) > max_age
+        if refresh and stale:
+            self.read()
+            with self._status_lock:
+                snapshot = dict(self._status)
+        return snapshot
 
     def read(self):
         if cv2 is None:
+            self._set_status(
+                available=False,
+                signal=False,
+                error="OpenCV no instalado",
+            )
             return None
         with self._lock:
             if self._cap is None:
@@ -51,16 +91,45 @@ class Camera:
                 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
                 if not cap.isOpened():
                     cap.release()
+                    self._set_status(
+                        available=False,
+                        signal=False,
+                        error="cámara no disponible",
+                    )
                     return None
                 self._cap = cap
             ok, frame = self._cap.read()
-            return frame if ok else None
+            if not ok or frame is None:
+                self._set_status(
+                    available=True,
+                    signal=False,
+                    error="no llega imagen de la cámara",
+                )
+                return None
+
+            # Muestreo barato: alcanza para distinguir una escena real del
+            # cartel negro de Iriun u otra webcam virtual desconectada.
+            small = frame[::4, ::4]
+            brightness = float(small.mean())
+            peak = float(np.percentile(small, 99)) if np is not None else 0.0
+            height, width = frame.shape[:2]
+            self._set_status(
+                available=True,
+                signal=brightness >= MIN_BRIGHTNESS and peak >= MIN_PEAK,
+                brightness=round(brightness, 2),
+                peak=round(peak, 2),
+                width=int(width),
+                height=int(height),
+                error=None,
+            )
+            return frame
 
     def close(self) -> None:
         with self._lock:
             if self._cap is not None:
                 self._cap.release()
                 self._cap = None
+        self._set_status(available=False, signal=False, error="cámara cerrada")
 
 
 def probe_color(camera: Camera, color: str = "rojo", samples: int = 8) -> dict[str, Any]:

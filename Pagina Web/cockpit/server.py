@@ -251,6 +251,7 @@ def _create_agent() -> Agent:
         port=_settings.get("port"),
         verbose=False,
         warmup=False,
+        conversation_only=True,
     )
 
 
@@ -426,6 +427,7 @@ class Handler(SimpleHTTPRequestHandler):
             "system": metrics,
             "battery": metrics.get("battery"),
             "emotion": None,
+            "camera": None,
         }
 
         if _agent is not None:
@@ -442,6 +444,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "memory": _agent.memory.count(),
                     "ollama": _agent.llm.health(),
                     "emotion": _agent.emotions.snapshot(),
+                    "camera": _agent.camera.status(),
                 }
             )
 
@@ -459,6 +462,27 @@ class Handler(SimpleHTTPRequestHandler):
         path = parsed.path
 
         try:
+            if path == "/api/companion":
+                agent = _agent
+                history: list[dict[str, str]] = []
+                mood: dict[str, Any] = {"mood": "tranquilo", "label": "tranquilo"}
+                memory = 0
+                if agent is not None:
+                    history = agent.memory.recent_turns(limit=12)
+                    mood = agent.emotions.snapshot()
+                    memory = agent.memory.count()
+                self._json(
+                    {
+                        "ok": True,
+                        "ready": _ready,
+                        "warming": _warming,
+                        "boot_error": _boot_error,
+                        "mood": mood,
+                        "history": history,
+                        "memory": memory,
+                    }
+                )
+                return
             if path == "/api/state":
                 self._json(self._state_payload())
                 return
@@ -700,10 +724,29 @@ class Handler(SimpleHTTPRequestHandler):
         if len(message) > 800:
             raise ValueError("mensaje demasiado largo")
 
-        agent = get_agent()
         started = time.perf_counter()
-        with _chat_lock:
-            reply = agent.respond(message)
+        try:
+            agent = get_agent()
+            with _chat_lock:
+                reply = agent.respond(message)
+        except Exception as exc:  # el usuario nunca ve el error crudo
+            elapsed = time.perf_counter() - started
+            log_event(
+                "chat",
+                f"fallo interno: {type(exc).__name__}: {exc}",
+                {"seconds": round(elapsed, 2)},
+            )
+            self._json(
+                {
+                    "ok": True,
+                    "reply": "Se me trabó la voz un segundo. ¿Me lo repetís?",
+                    "seconds": round(elapsed, 2),
+                    "metrics": {},
+                    "mode": "simulacion",
+                    "state": self._state_payload(),
+                }
+            )
+            return
         elapsed = time.perf_counter() - started
 
         log_event("chat", f"vos: {message[:120]}", {"seconds": round(elapsed, 2)})
@@ -714,6 +757,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "reply": reply,
                 "seconds": round(elapsed, 2),
                 "metrics": agent.llm.last_metrics,
+                "mood": agent.emotions.snapshot(),
                 "mode": agent.link.status()["mode"],
                 "state": self._state_payload(),
             }
@@ -829,8 +873,17 @@ class Handler(SimpleHTTPRequestHandler):
 
         agent = get_agent()
         frame = agent.camera.read()
+        eyes = agent.camera.status()
         if frame is None:
-            self._json({"ok": False, "error": "no hay cámara disponible"})
+            self._json(
+                {
+                    "ok": False,
+                    "error": "no hay cámara disponible",
+                    "signal": False,
+                    "brightness": eyes.get("brightness", 0),
+                    "camera": eyes,
+                }
+            )
             return
 
         detection = _detect(frame, color)
@@ -857,6 +910,9 @@ class Handler(SimpleHTTPRequestHandler):
                 "color": color,
                 "detection": detection,
                 "tracking": _tracker is not None,
+                "signal": bool(eyes.get("signal")),
+                "brightness": eyes.get("brightness", 0),
+                "camera": eyes,
             }
         )
 

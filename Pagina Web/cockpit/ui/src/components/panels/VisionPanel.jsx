@@ -33,6 +33,7 @@ export function VisionPanel({
 }) {
   const detection = camera?.detection;
   const found = Boolean(detection?.found);
+  const noSignal = camera?.signal === false || camera?.camera?.signal === false;
   const frameWidth = camera?.width || 640;
   const frameHeight = camera?.height || 480;
   const box = found
@@ -64,7 +65,7 @@ export function VisionPanel({
       }
     >
       <div className="vision-layout">
-        <div className="vision-feed">
+        <div className={`vision-feed ${noSignal ? "is-nosignal" : ""}`}>
           {camera?.image ? (
             <img src={camera.image} alt="Vista de la cámara de WALL-E" />
           ) : (
@@ -76,6 +77,14 @@ export function VisionPanel({
             </div>
           )}
 
+          {noSignal && camera?.image ? (
+            <div className="vision-nosignal">
+              <Camera size={26} />
+              <strong>SENSORES DESCONECTADOS</strong>
+              <span>La cámara no está entregando una imagen real.</span>
+            </div>
+          ) : null}
+
           <div className="vision-overlay">
             <span className="vision-corner vision-corner--tl" />
             <span className="vision-corner vision-corner--tr" />
@@ -86,11 +95,11 @@ export function VisionPanel({
             <div className="vision-hud vision-hud--top">
               <span>CAM-01</span>
               <span>{frameWidth}×{frameHeight}</span>
-              <span>{live ? "STREAM" : "FRAME"}</span>
+              <span>{noSignal ? "NO SIGNAL" : live ? "STREAM" : "FRAME"}</span>
             </div>
             <div className="vision-hud vision-hud--bottom">
               <span>RGB / HSV</span>
-              <span>{found ? `OBJETO ${color?.toUpperCase()}` : "SIN OBJETIVO"}</span>
+              <span>{noSignal ? "SIN SEÑAL" : found ? `OBJETO ${color?.toUpperCase()}` : "SIN OBJETIVO"}</span>
             </div>
             {box ? (
               <div className={`detection-box ${found ? "is-found" : ""}`} style={box}>

@@ -26,10 +26,12 @@ HEADER = """# Generado por build_model.py — no editar a mano.
 
 FROM {base}
 
-PARAMETER temperature 0.7
+PARAMETER temperature 0.25
 PARAMETER top_p 0.9
 PARAMETER top_k 40
-PARAMETER repeat_penalty 1.1
+PARAMETER repeat_penalty 1.18
+PARAMETER frequency_penalty 0.3
+PARAMETER presence_penalty 0.2
 PARAMETER num_ctx 4096
 PARAMETER num_predict 256
 PARAMETER stop "<|im_end|>"

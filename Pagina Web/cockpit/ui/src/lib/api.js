@@ -24,6 +24,7 @@ const post = (path, payload) =>
   request(path, { method: "POST", body: JSON.stringify(payload ?? {}) });
 
 export const api = {
+  companion: () => request("/api/companion"),
   state: () => request("/api/state"),
   events: (limit = 40) => request(`/api/events?limit=${limit}`),
   health: () => request("/api/health"),

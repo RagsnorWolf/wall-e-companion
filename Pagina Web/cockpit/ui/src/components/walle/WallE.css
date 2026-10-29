@@ -1,4 +1,7 @@
 .walle-stage {
+  --gaze-x: 0px;
+  --gaze-y: 0px;
+  --photo-filter: contrast(1.06) saturate(1.08) brightness(1.01);
   position: relative;
   flex: 1;
   min-height: 0;
@@ -7,14 +10,38 @@
   overflow: hidden;
   isolation: isolate;
   background:
-    radial-gradient(70% 60% at 50% 48%, rgba(242, 166, 60, 0.08), transparent 70%),
-    radial-gradient(45% 40% at 70% 20%, rgba(90, 225, 210, 0.06), transparent 70%),
-    linear-gradient(180deg, rgba(7, 13, 18, 0.2), rgba(3, 7, 10, 0.7));
+    radial-gradient(70% 60% at 50% 44%, rgba(242, 166, 60, 0.1), transparent 70%),
+    radial-gradient(45% 40% at 72% 18%, rgba(90, 225, 210, 0.07), transparent 70%),
+    linear-gradient(180deg, rgba(7, 13, 18, 0.2), rgba(3, 7, 10, 0.78));
+}
+
+/* Fondo cinematográfico: la ciudad de WALL-E, muy desenfocada y oscura. */
+.walle-stage__backdrop {
+  position: absolute;
+  inset: -8%;
+  z-index: 0;
+  background-size: cover;
+  background-position: center 62%;
+  filter: blur(9px) saturate(0.62) brightness(0.32) sepia(0.16);
+  opacity: 0.3;
+  transform: scale(1.08);
+  pointer-events: none;
+}
+
+.walle-stage__vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse at 50% 42%, transparent 14%, rgba(3, 7, 10, 0.5) 62%, rgba(3, 7, 10, 0.94) 100%),
+    linear-gradient(180deg, rgba(4, 8, 12, 0.55), transparent 28%, transparent 68%, rgba(3, 7, 10, 0.82));
+  pointer-events: none;
 }
 
 .walle-stage__grid {
   position: absolute;
   inset: 0;
+  z-index: 2;
   background-image:
     linear-gradient(rgba(126, 240, 226, 0.055) 1px, transparent 1px),
     linear-gradient(90deg, rgba(126, 240, 226, 0.055) 1px, transparent 1px);
@@ -25,28 +52,53 @@
 
 .walle-stage__glow {
   position: absolute;
+  z-index: 2;
   width: 60%;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(242, 180, 90, 0.12), rgba(242, 180, 90, 0.02) 50%, transparent 70%);
+  background: radial-gradient(circle, rgba(242, 180, 90, 0.14), rgba(242, 180, 90, 0.025) 50%, transparent 70%);
   filter: blur(12px);
   animation: walleHalo 8s ease-in-out infinite;
 }
 
 @keyframes walleHalo {
-  0%, 100% { transform: scale(1); opacity: 0.75; }
+  0%, 100% { transform: scale(1); opacity: 0.72; }
   50% { transform: scale(1.08); opacity: 1; }
 }
 
 .walle-stage__scan {
   position: absolute;
-  left: 0;
-  right: 0;
+  inset: 0;
+  z-index: 6;
   height: 18%;
-  background: linear-gradient(180deg, transparent, rgba(126, 240, 226, 0.055), transparent);
+  background: linear-gradient(180deg, transparent, rgba(126, 240, 226, 0.05), transparent);
   animation: walleScan 7s linear infinite;
   pointer-events: none;
+}
+
+.walle-dust {
+  position: absolute;
+  inset: 0;
   z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.walle-dust i {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  background: rgba(242, 190, 120, 0.6);
+  box-shadow: 0 0 8px rgba(242, 170, 80, 0.45);
+  opacity: 0;
+  animation: walleDust 9s ease-in-out infinite;
+}
+
+@keyframes walleDust {
+  0%, 100% { transform: translate3d(0, 12px, 0) scale(0.5); opacity: 0; }
+  28% { opacity: 0.5; }
+  62% { transform: translate3d(7px, -28px, 0) scale(1); opacity: 0.24; }
+  92% { opacity: 0; }
 }
 
 @keyframes walleScan {
@@ -56,140 +108,309 @@
   100% { transform: translateY(560%); opacity: 0; }
 }
 
-.walle-svg {
+/* ------------------------------------------------------------------
+   AVATAR REAL: render PNG con transparencia, luz de borde y parallax
+   ------------------------------------------------------------------ */
+.walle-avatar {
   position: relative;
-  z-index: 2;
-  width: min(100%, 540px);
-  height: 100%;
+  z-index: 3;
+  height: min(94%, 520px);
   max-height: 100%;
-  overflow: visible;
-  filter: drop-shadow(0 28px 30px rgba(0, 0, 0, 0.55));
+  aspect-ratio: 813 / 1107;
+  display: grid;
+  place-items: end center;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
 }
 
 .walle-breathe {
-  transform-box: fill-box;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
   transform-origin: 50% 100%;
-  animation: walleBreathe 5.6s ease-in-out infinite;
+  animation: walleBreathe 5.8s ease-in-out infinite;
 }
 
 @keyframes walleBreathe {
-  0%, 100% { transform: translateY(0) scaleY(1); }
-  50% { transform: translateY(-2px) scaleY(1.004); }
+  0%, 100% { transform: translateY(0) scale(1); }
+  46% { transform: translateY(-1px) scale(1.012); }
+  58% { transform: translateY(-2px) scale(1.018); }
 }
 
-#walle-head {
-  transform-box: view-box;
-  transform-origin: 280px 130px;
-  transition: transform 0.12s linear;
+.walle-figure {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  transform-origin: 50% 92%;
 }
 
-.lid {
-  transform-box: fill-box;
-  transform-origin: center;
-  transform: translateY(-105%);
-  animation: walleBlink 6.4s infinite;
+.walle-photo {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter:
+    var(--photo-filter)
+    drop-shadow(0 30px 34px rgba(0, 0, 0, 0.62))
+    drop-shadow(0 2px 1px rgba(255, 214, 160, 0.08));
+  transition: filter 0.55s ease;
 }
 
-@keyframes walleBlink {
-  0%, 93.2%, 100% { transform: translateY(-105%); }
-  94.6%, 96.2% { transform: translateY(0); }
+/* Luz de borde recortada por la silueta real del PNG. */
+.walle-rim {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.42;
+  transition: opacity 0.4s ease;
 }
 
-.walle-stage[data-mood="contento"] .lid,
-.walle-stage[data-mood="mimoso"] .lid {
-  animation: none;
-  transform: translateY(-54%);
+.walle-rim--cool {
+  background: linear-gradient(
+    128deg,
+    rgba(126, 240, 226, 0.34),
+    rgba(126, 240, 226, 0.04) 30%,
+    transparent 58%,
+    rgba(126, 240, 226, 0.08) 100%
+  );
+  opacity: 0.32;
 }
 
-.walle-stage[data-mood="asustado"] .lid {
-  animation: none;
-  transform: translateY(-102%);
+.walle-rim--warm {
+  background: linear-gradient(
+    302deg,
+    rgba(255, 178, 92, 0.44),
+    rgba(255, 178, 92, 0.08) 32%,
+    transparent 60%,
+    rgba(255, 220, 170, 0.06) 100%
+  );
+  opacity: 0.46;
 }
 
-.walle-stage[data-mood="cansado"] .lid {
-  animation: none;
-  transform: translateY(-32%);
+/* Barrido fino sobre el metal, también recortado a la silueta. */
+.walle-scan {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 47.5%,
+    rgba(126, 240, 226, 0.42) 50%,
+    transparent 52.5%
+  );
+  background-size: 100% 260%;
+  background-repeat: no-repeat;
+  mix-blend-mode: screen;
+  opacity: 0.24;
+  animation: wallePhotoScan 7.5s linear infinite;
 }
 
-.walle-stage[data-mood="aburrido"] .lid {
-  animation: none;
-  transform: translateY(-42%);
+@keyframes wallePhotoScan {
+  0% { background-position: 0 -130%; opacity: 0; }
+  12% { opacity: 0.24; }
+  88% { opacity: 0.24; }
+  100% { background-position: 0 130%; opacity: 0; }
 }
 
-.walle-stage[data-mood="asustado"] .eyeball {
-  filter: brightness(1.18) saturate(0.8);
+/* Reflejos de los lentes: acompañan un poco al cursor. */
+.walle-glint {
+  position: absolute;
+  z-index: 5;
+  width: 7.4%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background: radial-gradient(
+    circle at 36% 30%,
+    rgba(255, 250, 232, 0.92),
+    rgba(255, 205, 140, 0.32) 34%,
+    transparent 70%
+  );
+  filter: blur(0.5px);
+  opacity: 0.55;
+  transform: translate(calc(var(--gaze-x) * 0.85), calc(var(--gaze-y) * 0.85));
+  transition: opacity 0.35s ease;
 }
 
-.walle-stage[data-mood="cansado"] .eyeball {
-  filter: brightness(0.72) saturate(0.7);
+.walle-glint--left {
+  left: 31.9%;
+  top: 8.9%;
 }
 
-.walle-stage[data-mood="contento"] .eyeball,
-.walle-stage[data-mood="mimoso"] .eyeball {
-  filter: brightness(1.08) saturate(1.1);
+.walle-glint--right {
+  left: 58.9%;
+  top: 7.8%;
 }
 
-.eye-scan {
-  transform-box: fill-box;
-  transform-origin: center;
+.walle-contact-shadow {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: -1.4%;
+  width: 68%;
+  height: 5%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.22) 58%, transparent 74%);
+  filter: blur(7px);
+  pointer-events: none;
 }
 
-.walle-stage.is-thinking .eye-scan {
+/* Anillos holográficos que aparecen cuando WALL-E piensa. */
+.walle-orbit {
+  position: absolute;
+  inset: 4% 2% 12%;
+  z-index: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.walle-orbit i {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+}
+
+.walle-orbit i:first-child {
+  width: 94%;
+  aspect-ratio: 1;
+  border: 1px dashed rgba(126, 240, 226, 0.22);
+  animation: walleOrbit 16s linear infinite;
+}
+
+.walle-orbit i:last-child {
+  width: 72%;
+  aspect-ratio: 1;
+  border: 1px solid rgba(242, 166, 60, 0.12);
+  border-top-color: rgba(242, 166, 60, 0.38);
+  animation: walleOrbit 11s linear infinite reverse;
+}
+
+@keyframes walleOrbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ------------------------------------------------------------------
+   ESTADOS
+   ------------------------------------------------------------------ */
+.walle-stage[data-mood="contento"] {
+  --photo-filter: contrast(1.05) saturate(1.16) brightness(1.06) sepia(0.03);
+}
+
+.walle-stage[data-mood="mimoso"] {
+  --photo-filter: contrast(1.04) saturate(1.14) brightness(1.05) sepia(0.05);
+}
+
+.walle-stage[data-mood="asustado"] {
+  --photo-filter: contrast(1.12) saturate(0.86) brightness(0.92);
+}
+
+.walle-stage[data-mood="cansado"] {
+  --photo-filter: contrast(1.02) saturate(0.72) brightness(0.78);
+}
+
+.walle-stage[data-mood="aburrido"] {
+  --photo-filter: contrast(1.02) saturate(0.66) brightness(0.88);
+}
+
+.walle-stage[data-mood="contento"] .walle-rim--warm,
+.walle-stage[data-mood="mimoso"] .walle-rim--warm {
+  opacity: 0.66;
+}
+
+.walle-stage.is-thinking .walle-orbit {
   opacity: 1;
-  animation: eyeScan 1.25s linear infinite;
 }
 
-@keyframes eyeScan {
-  from { transform: rotate(0deg); opacity: 0.35; }
-  50% { opacity: 1; }
-  to { transform: rotate(360deg); opacity: 0.35; }
+.walle-stage.is-thinking .walle-photo {
+  filter:
+    var(--photo-filter)
+    drop-shadow(0 30px 34px rgba(0, 0, 0, 0.62))
+    drop-shadow(0 0 24px rgba(126, 240, 226, 0.24));
 }
 
-.walle-stage.is-thinking .walle-svg {
-  filter: drop-shadow(0 28px 30px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 18px rgba(126, 240, 226, 0.18));
+.walle-stage.is-thinking .walle-scan {
+  opacity: 0.55;
+  animation-duration: 2.8s;
 }
 
-.walle-chest-led {
-  transform-box: fill-box;
-  transform-origin: center;
+.walle-stage.is-thinking .walle-glint {
+  opacity: 0.82;
 }
 
-.walle-stage.is-speaking .walle-chest-led {
-  animation: chestPulse 0.32s ease-in-out infinite alternate;
+.walle-stage.is-speaking .walle-photo {
+  filter:
+    var(--photo-filter)
+    drop-shadow(0 30px 34px rgba(0, 0, 0, 0.62))
+    drop-shadow(0 0 26px rgba(242, 166, 60, 0.28));
 }
 
-@keyframes chestPulse {
-  from { transform: scale(0.92); opacity: 0.7; }
-  to { transform: scale(1.28); opacity: 1; }
+.walle-stage.is-speaking .walle-rim--warm {
+  animation: walleWarmPulse 0.9s ease-in-out infinite alternate;
 }
 
-.walle-stage.is-speaking .walle-svg {
-  filter: drop-shadow(0 28px 30px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 22px rgba(242, 166, 60, 0.2));
+@keyframes walleWarmPulse {
+  from { opacity: 0.38; }
+  to { opacity: 0.82; }
 }
 
-.walle-dust {
-  animation: dustFloat 7s ease-in-out infinite;
-  opacity: 0.35;
+.walle-stage.is-petting .walle-figure {
+  animation: wallePet 0.95s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@keyframes dustFloat {
-  0%, 100% { transform: translateY(0); opacity: 0.12; }
-  50% { transform: translateY(-22px); opacity: 0.5; }
+@keyframes wallePet {
+  0% { transform: translateY(0) rotate(0deg) scale(1); }
+  22% { transform: translateY(-8px) rotate(-1.4deg) scale(1.012); }
+  46% { transform: translateY(2px) rotate(1.2deg) scale(0.995); }
+  68% { transform: translateY(-4px) rotate(-0.6deg) scale(1.006); }
+  100% { transform: translateY(0) rotate(0deg) scale(1); }
 }
 
-.walle-plant {
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
-  animation: plantSway 6.8s ease-in-out infinite;
+.walle-hearts {
+  position: absolute;
+  z-index: 7;
+  left: 50%;
+  top: 20%;
+  pointer-events: none;
 }
 
-@keyframes plantSway {
-  0%, 100% { transform: rotate(-1.4deg); }
-  50% { transform: rotate(1.8deg); }
+.walle-hearts span {
+  position: absolute;
+  color: #ff9d8a;
+  font-size: 17px;
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(255, 120, 90, 0.85);
+  animation: walleHeart 1.15s ease-out forwards;
 }
 
+.walle-hearts span:nth-child(1) { left: -44px; animation-delay: 0s; }
+.walle-hearts span:nth-child(2) { left: -8px; animation-delay: 0.1s; font-size: 13px; }
+.walle-hearts span:nth-child(3) { left: 26px; animation-delay: 0.05s; font-size: 15px; }
+
+@keyframes walleHeart {
+  0% { transform: translateY(0) scale(0.4) rotate(-6deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translateY(-82px) scale(1.12) rotate(14deg); opacity: 0; }
+}
+
+/* ------------------------------------------------------------------
+   HUD / PISO / ETIQUETAS
+   ------------------------------------------------------------------ */
 .walle-stage__floor {
   position: absolute;
+  z-index: 2;
   left: 12%;
   right: 12%;
   bottom: 7%;
@@ -197,10 +418,12 @@
   border-radius: 50%;
   background: radial-gradient(ellipse, rgba(0, 0, 0, 0.55), transparent 70%);
   filter: blur(8px);
+  pointer-events: none;
 }
 
 .walle-stage__tag {
   position: absolute;
+  z-index: 5;
   left: 16px;
   bottom: 12px;
   color: rgba(126, 240, 226, 0.45);
@@ -208,7 +431,19 @@
   font-size: 8px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  z-index: 4;
+}
+
+.walle-stage__hint {
+  position: absolute;
+  z-index: 5;
+  right: 16px;
+  bottom: 12px;
+  color: rgba(242, 180, 90, 0.34);
+  font-family: var(--font-mono);
+  font-size: 7px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  pointer-events: none;
 }
 
 .walle-hud {
@@ -263,8 +498,26 @@
 
 @media (max-width: 1180px) {
   .walle-hud { display: none; }
+  .walle-avatar { height: min(96%, 470px); }
 }
 
 @media (max-width: 760px) {
-  .walle-svg { width: min(100%, 430px); }
+  .walle-avatar { height: min(92%, 390px); }
+  .walle-stage__hint { display: none; }
+  .walle-stage__backdrop { opacity: 0.2; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .walle-breathe,
+  .walle-stage__glow,
+  .walle-stage__scan,
+  .walle-scan,
+  .walle-orbit i,
+  .walle-stage.is-speaking .walle-rim--warm {
+    animation: none !important;
+  }
+
+  .walle-stage.is-petting .walle-figure {
+    animation: none !important;
+  }
 }

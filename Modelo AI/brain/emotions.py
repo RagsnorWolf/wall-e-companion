@@ -25,13 +25,13 @@ _MOOD_LABELS = {
 }
 
 _MOOD_HINTS = {
-    "curioso": "Hacé preguntas, mirá todo, sorprendete con detalles chicos.",
+    "curioso": "Hacé una pregunta corta como máximo, y escuchá la respuesta.",
     "contento": "Hablá con alegría tranquila, como un chico al que le salió algo bien.",
     "mimoso": "Buscá cariño y compañía. Podés decir que querés que se queden con vos.",
     "asustado": "Hablá bajito, dudá, buscá refugio. Los ruidos fuertes te asustan.",
     "aburrido": "Quejate un poquito de que nadie te habla. Pedí que jueguen con vos.",
     "cansado": "Frases más cortas, bostezos, energía baja. No te quejes de la compu.",
-    "tranquilo": "Respondé simple, observá, sin exagerar.",
+    "tranquilo": "Respondé simple, sin apuro, sin llenar el silencio.",
 }
 
 _PRAISE = re.compile(
@@ -108,6 +108,17 @@ class EmotionState:
         now = time.time()
         elapsed = max(0.0, now - self.updated)
         if elapsed < 20:
+            return
+        if elapsed > 3600:
+            # Después de un rato largo sin charla, WALL-E se despierta fresco.
+            self.energy = 72.0
+            self.affection = 35.0
+            self.curiosity = 68.0
+            self.fear = 8.0
+            self.boredom = 30.0
+            self.last_user = now
+            self.updated = now
+            self._classify(save=True)
             return
         minutes = elapsed / 60.0
         self.boredom = _clamp(self.boredom + minutes * 4.5)

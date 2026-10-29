@@ -1,34 +1,62 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Sidebar } from "./components/shell/Sidebar";
-import { TopBar } from "./components/shell/TopBar";
-import { DashboardView } from "./views/DashboardView";
-import { ControlView } from "./views/ControlView";
-import { VisionView } from "./views/VisionView";
-import { MemoryView } from "./views/MemoryView";
-import { AgendaView } from "./views/AgendaView";
-import { SettingsView } from "./views/SettingsView";
-import { useRobot } from "./hooks/useRobot";
-import { useToast } from "./hooks/useToasts";
+import { WallE } from "./components/walle/WallE";
 import { api } from "./lib/api";
-import { shortClock, uptime } from "./lib/format";
+import "./styles/companion.css";
 
-const WELCOME = {
-  id: "boot",
-  role: "system",
-  text: "Núcleo local en línea. WALL·E está despierto y mirando la planta.",
-  time: shortClock(),
+const MOOD_LABEL = {
+  tranquilo: "tranquilo",
+  curioso: "curioso",
+  contento: "contento",
+  mimoso: "mimoso",
+  asustado: "asustado",
+  aburrido: "aburrido",
+  cansado: "cansado",
 };
 
-export function App() {
-  const { state, events, online, refresh, setState } = useRobot(2400);
-  const notify = useToast();
+const SUGGESTIONS = [
+  "Hola, ¿cómo estás?",
+  "Contame algo lindo",
+  "Me llamo...",
+];
 
-  const [view, setView] = useState("dashboard");
-  const [messages, setMessages] = useState([WELCOME]);
+const WELCOME = {
+  id: "welcome",
+  role: "assistant",
+  text: "Hola. Soy WALL-E. ¿Cómo viene tu día?",
+  time: "",
+};
+
+function nowLabel() {
+  try {
+    return new Date().toLocaleTimeString("es-AR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
+
+function makeMessage(role, text, extra = {}) {
+  return {
+    id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    role,
+    text,
+    time: nowLabel(),
+    ...extra,
+  };
+}
+
+export function App() {
+  const [messages, setMessages] = useState([]);
+  const [draft, setDraft] = useState("");
   const [thinking, setThinking] = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  const [latency, setLatency] = useState(null);
+  const [listening, setListening] = useState(false);
+  const [interim, setInterim] = useState("");
+  const [mood, setMood] = useState("tranquilo");
+  const [petSignal, setPetSignal] = useState(0);
   const [sound, setSound] = useState(() => {
     try {
       return localStorage.getItem("walle.sound") !== "off";
@@ -36,17 +64,24 @@ export function App() {
       return true;
     }
   });
-  const [history, setHistory] = useState([]);
-  const [camera, setCamera] = useState(null);
-  const [cameraLive, setCameraLive] = useState(false);
-  const [color, setColor] = useState("rojo");
-  const [ports, setPorts] = useState([]);
-  const [busy, setBusy] = useState(false);
-  const [chatSeed, setChatSeed] = useState(null);
+  const [online, setOnline] = useState(true);
+  const [ready, setReady] = useState(false);
+  const [booting, setBooting] = useState(true);
+  const [notice, setNotice] = useState(null);
 
+  const threadRef = useRef(null);
+  const composerRef = useRef(null);
   const thinkingRef = useRef(false);
   const soundRef = useRef(sound);
-  const cameraWarned = useRef(false);
+  const draftRef = useRef("");
+  const voiceRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const sendRef = useRef(null);
+
+  const micSupported = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+  }, []);
 
   useEffect(() => {
     soundRef.current = sound;
@@ -55,25 +90,27 @@ export function App() {
     } catch {
       /* almacenamiento bloqueado */
     }
+    if (!sound && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+    }
   }, [sound]);
 
   useEffect(() => {
-    if (state?.system?.cpu == null) return;
-    setHistory((current) => [...current.slice(-27), Number(state.system.cpu)]);
-  }, [state?.system?.cpu]);
-
-  const loadPorts = useCallback(async () => {
-    try {
-      const data = await api.ports();
-      setPorts(data.ports || []);
-    } catch {
-      setPorts([]);
-    }
+    if (!("speechSynthesis" in window)) return undefined;
+    const synth = window.speechSynthesis;
+    const pickVoice = () => {
+      const voices = synth.getVoices();
+      voiceRef.current =
+        voices.find((item) => /es[-_]AR/i.test(item.lang)) ||
+        voices.find((item) => /es[-_]MX/i.test(item.lang)) ||
+        voices.find((item) => item.lang?.toLowerCase().startsWith("es")) ||
+        null;
+    };
+    pickVoice();
+    synth.addEventListener?.("voiceschanged", pickVoice);
+    return () => synth.removeEventListener?.("voiceschanged", pickVoice);
   }, []);
-
-  useEffect(() => {
-    loadPorts();
-  }, [loadPorts]);
 
   const speak = useCallback((text) => {
     if (!soundRef.current || !("speechSynthesis" in window)) return;
@@ -83,12 +120,7 @@ export function App() {
     utterance.lang = "es-AR";
     utterance.rate = 1.03;
     utterance.pitch = 1.12;
-    const voices = synth.getVoices();
-    const voice =
-      voices.find((item) => /es[-_]AR/i.test(item.lang)) ||
-      voices.find((item) => /es[-_]MX/i.test(item.lang)) ||
-      voices.find((item) => item.lang?.toLowerCase().startsWith("es"));
-    if (voice) utterance.voice = voice;
+    if (voiceRef.current) utterance.voice = voiceRef.current;
     utterance.onstart = () => setSpeaking(true);
     utterance.onend = () => setSpeaking(false);
     utterance.onerror = () => setSpeaking(false);
@@ -96,355 +128,541 @@ export function App() {
   }, []);
 
   const send = useCallback(
-    async (text) => {
-      const clean = (text || "").trim();
-      if (!clean || thinkingRef.current) return;
+    async (raw) => {
+      const text = String(raw ?? draftRef.current ?? "").trim();
+      if (!text || thinkingRef.current) return;
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          /* ya estaba detenido */
+        }
+        recognitionRef.current = null;
+      }
       thinkingRef.current = true;
+      draftRef.current = "";
+      setDraft("");
+      setInterim("");
+      setNotice(null);
       setThinking(true);
-      setMessages((current) => [
-        ...current,
-        { id: `u-${Date.now()}`, role: "user", text: clean, time: shortClock() },
-      ]);
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+        setSpeaking(false);
+      }
+      setMessages((current) => [...current, makeMessage("user", text)]);
+      if (composerRef.current) composerRef.current.style.height = "auto";
 
       try {
-        const data = await api.chat(clean);
+        const data = await api.chat(text);
         const reply = data.reply || "Mmm. No sé qué decir.";
         setMessages((current) => [
           ...current,
-          {
-            id: `a-${Date.now()}`,
-            role: "assistant",
-            text: reply,
-            time: shortClock(),
-            seconds: data.seconds,
-          },
+          makeMessage("assistant", reply, { error: false }),
         ]);
-        setLatency(data.seconds ?? null);
-        if (data.state) setState(data.state);
+        const nextMood = data.mood?.mood || data.state?.emotion?.mood;
+        if (nextMood) setMood(nextMood);
+        setOnline(true);
         speak(reply);
-      } catch (error) {
+      } catch {
         setMessages((current) => [
           ...current,
-          {
-            id: `e-${Date.now()}`,
-            role: "assistant",
-            error: true,
-            text: `No pude responder: ${error.message}`,
-            time: shortClock(),
-          },
+          makeMessage(
+            "assistant",
+            "Se me cortó la voz un segundo. ¿Me lo repetís?",
+            { error: true }
+          ),
         ]);
-        notify(error.message, "error");
+        setNotice("No pude hablar con WALL-E. Revisá que el servidor esté abierto.");
+        setOnline(false);
       } finally {
         thinkingRef.current = false;
         setThinking(false);
-        refresh();
       }
     },
-    [notify, refresh, setState, speak]
+    [speak]
   );
 
-  const run = useCallback(
-    async (action, successMessage) => {
-      setBusy(true);
-      try {
-        const data = await action();
-        if (data?.state) setState(data.state);
-        if (successMessage) notify(successMessage, "success");
-        return data;
-      } catch (error) {
-        notify(error.message, "error");
-        return null;
-      } finally {
-        setBusy(false);
-      }
-    },
-    [notify, setState]
-  );
-
-  const handleDrive = useCallback(
-    async (left, right) => {
-      try {
-        await api.drive(left, right);
-      } catch (error) {
-        notify(error.message, "error");
-      }
-    },
-    [notify]
-  );
-
-  const handleMove = useCallback(
-    async (left, right, seconds) => {
-      setBusy(true);
-      try {
-        const data = await api.move(left, right, seconds);
-        if (data.state) setState(data.state);
-      } catch (error) {
-        notify(error.message, "error");
-      } finally {
-        setBusy(false);
-      }
-    },
-    [notify, setState]
-  );
-
-  const handleStop = useCallback(async () => {
-    try {
-      const data = await api.stop();
-      if (data.state) setState(data.state);
-      notify("Parada de emergencia enviada.", "success");
-    } catch (error) {
-      notify(error.message, "error");
-    }
-  }, [notify, setState]);
-
-  const handleConnect = useCallback(
-    async (port) => {
-      if (!port) {
-        notify("Elegí un puerto primero.", "error");
-        return;
-      }
-      await run(() => api.connect(port), `Enlace abierto en ${port}.`);
-      loadPorts();
-    },
-    [loadPorts, notify, run]
-  );
-
-  const handleDisconnect = useCallback(async () => {
-    await run(() => api.disconnect(), "Cuerpo desconectado.");
-  }, [run]);
-
-  const handlePet = useCallback(async () => {
-    try {
-      const data = await api.emotion("caricia");
-      if (data.state) setState(data.state);
-      else refresh();
-      notify("WALL·E se puso contento.", "success");
-      if (soundRef.current && "speechSynthesis" in window) {
-        const synth = window.speechSynthesis;
-        synth.cancel();
-        const utterance = new SpeechSynthesisUtterance("¡Ay! Qué lindo.");
-        utterance.lang = "es-AR";
-        utterance.pitch = 1.25;
-        utterance.rate = 1.05;
-        utterance.onstart = () => setSpeaking(true);
-        utterance.onend = () => setSpeaking(false);
-        synth.speak(utterance);
-      }
-    } catch (error) {
-      notify(error.message, "error");
-    }
-  }, [notify, refresh, setState]);
-
-  const handleTracking = useCallback(
-    async (enabled) => {
-      await run(
-        () => api.track(enabled, color),
-        enabled ? `Seguimiento de ${color} activado.` : "Seguimiento desactivado."
-      );
-    },
-    [color, run]
-  );
-
-  const handleColor = useCallback(
-    async (next) => {
-      setColor(next);
-      if (state?.tracking?.enabled) {
-        await run(
-          () => api.track(true, next),
-          `Objetivo cambiado a ${next}.`
-        );
-      }
-    },
-    [run, state?.tracking?.enabled]
-  );
-
-  const fetchFrame = useCallback(async () => {
-    const data = await api.camera(color);
-    setCamera(data);
-    cameraWarned.current = false;
-    return data;
-  }, [color]);
+  sendRef.current = send;
 
   useEffect(() => {
-    if (!cameraLive) return undefined;
-    let cancelled = false;
-    let timer = null;
-
-    const tick = async () => {
-      try {
-        const data = await api.camera(color);
-        if (cancelled) return;
-        setCamera(data);
-        cameraWarned.current = false;
-      } catch (error) {
-        if (cancelled) return;
-        setCameraLive(false);
-        if (!cameraWarned.current) {
-          cameraWarned.current = true;
-          notify(error.message, "error");
-        }
-      } finally {
-        if (!cancelled) timer = window.setTimeout(tick, 1000);
-      }
-    };
-
-    tick();
+    let alive = true;
+    api
+      .companion()
+      .then((data) => {
+        if (!alive) return;
+        setOnline(true);
+        setReady(Boolean(data.ready));
+        if (data.mood?.mood) setMood(data.mood.mood);
+        const history = (data.history || [])
+          .filter((turn) => turn && turn.content)
+          .map((turn, index) => ({
+            id: `h-${index}`,
+            role: turn.role === "user" ? "user" : "assistant",
+            text: turn.content,
+            time: "",
+          }));
+        setMessages(history.length ? history : [WELCOME]);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setOnline(false);
+        setMessages([WELCOME]);
+      })
+      .finally(() => {
+        if (alive) setBooting(false);
+      });
     return () => {
-      cancelled = true;
-      if (timer) window.clearTimeout(timer);
+      alive = false;
     };
-  }, [cameraLive, color, notify]);
-
-  const handleCapture = useCallback(async () => {
-    try {
-      await fetchFrame();
-      notify("Cuadro capturado.", "success");
-    } catch (error) {
-      notify(error.message, "error");
-    }
-  }, [fetchFrame, notify]);
-
-  const handleLive = useCallback(() => {
-    setCameraLive((current) => !current);
   }, []);
 
-  const handleChatSeed = useCallback((text) => {
-    setChatSeed(text);
-    setView("dashboard");
-    window.setTimeout(() => {
-      document.querySelector(".chat-composer textarea")?.focus();
-    }, 220);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      api
+        .companion()
+        .then((data) => {
+          setOnline(true);
+          setReady(Boolean(data.ready));
+          if (data.mood?.mood) setMood(data.mood.mood);
+        })
+        .catch(() => setOnline(false));
+    }, 10000);
+    return () => window.clearInterval(timer);
   }, []);
 
-  const handleSeedUsed = useCallback(() => setChatSeed(null), []);
+  useEffect(() => {
+    const thread = threadRef.current;
+    if (!thread) return;
+    thread.scrollTo({ top: thread.scrollHeight, behavior: "smooth" });
+  }, [messages, thinking]);
 
-  const mood = state?.emotion?.mood || "tranquilo";
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = window.setTimeout(() => setNotice(null), 6500);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
-  const shared = useMemo(
-    () => ({
-      state,
-      events,
-      history,
-      messages,
-      thinking,
-      speaking,
-      latency,
-      sound,
-      camera,
-      color,
-      cameraLive,
-      ports,
-      busy,
-      mood,
-      onSound: () => setSound((current) => !current),
-      onSend: send,
-      onDrive: handleDrive,
-      onMove: handleMove,
-      onStop: handleStop,
-      onConnect: handleConnect,
-      onDisconnect: handleDisconnect,
-      onRefreshPorts: loadPorts,
-      onPet: handlePet,
-      onTracking: handleTracking,
-      onColor: handleColor,
-      onCapture: handleCapture,
-      onLive: handleLive,
-      onChatSeed: handleChatSeed,
-      onSeedUsed: handleSeedUsed,
-      notify,
-      refresh,
-    }),
-    [
-      state,
-      events,
-      history,
-      messages,
-      thinking,
-      speaking,
-      latency,
-      sound,
-      camera,
-      color,
-      cameraLive,
-      ports,
-      busy,
-      mood,
-      send,
-      handleDrive,
-      handleMove,
-      handleStop,
-      handleConnect,
-      handleDisconnect,
-      loadPorts,
-      handlePet,
-      handleTracking,
-      handleColor,
-      handleCapture,
-      handleLive,
-      handleChatSeed,
-      handleSeedUsed,
-      notify,
-      refresh,
-    ]
+  useEffect(
+    () => () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          /* nada */
+        }
+      }
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    },
+    []
   );
 
+  const updateDraft = useCallback((value) => {
+    draftRef.current = value;
+    setDraft(value);
+  }, []);
+
+  const handleDraft = useCallback(
+    (event) => {
+      updateDraft(event.target.value);
+      const element = event.target;
+      element.style.height = "auto";
+      element.style.height = `${Math.min(element.scrollHeight, 132)}px`;
+    },
+    [updateDraft]
+  );
+
+  const submit = useCallback(
+    (event) => {
+      event?.preventDefault();
+      send();
+    },
+    [send]
+  );
+
+  const handleKeyDown = useCallback(
+    (event) => {
+      if (event.key !== "Enter" || event.shiftKey || event.nativeEvent?.isComposing) {
+        return;
+      }
+      event.preventDefault();
+      send();
+    },
+    [send]
+  );
+
+  const toggleSound = useCallback(() => {
+    const next = !soundRef.current;
+    soundRef.current = next;
+    setSound(next);
+    if (!next && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+    }
+  }, []);
+
+  const toggleMic = useCallback(() => {
+    if (listening) {
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        /* nada */
+      }
+      return;
+    }
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) {
+      setNotice("Este navegador no tiene dictado. Probá con Chrome o Edge.");
+      return;
+    }
+    const recognition = new Recognition();
+    recognition.lang = "es-AR";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.onresult = (event) => {
+      let finalText = "";
+      let partial = "";
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const transcript = result[0]?.transcript || "";
+        if (result.isFinal) finalText += transcript;
+        else partial += transcript;
+      }
+      if (finalText.trim()) {
+        updateDraft(finalText.trim());
+        setInterim("");
+        window.setTimeout(() => sendRef.current?.(finalText.trim()), 220);
+      } else {
+        setInterim(partial);
+      }
+    };
+    recognition.onerror = (event) => {
+      if (event.error !== "aborted" && event.error !== "no-speech") {
+        setNotice("No te escuché bien. Probá otra vez.");
+      }
+      setListening(false);
+      setInterim("");
+      recognitionRef.current = null;
+    };
+    recognition.onend = () => {
+      setListening(false);
+      setInterim("");
+      recognitionRef.current = null;
+    };
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+    }
+    try {
+      recognition.start();
+      recognitionRef.current = recognition;
+      setListening(true);
+      setNotice(null);
+    } catch {
+      setNotice("No pude abrir el micrófono.");
+    }
+  }, [listening, updateDraft]);
+
+  const handlePet = useCallback(async () => {
+    setPetSignal((value) => value + 1);
+    try {
+      const data = await api.emotion("caricia");
+      const nextMood = data.emotion?.mood || data.state?.emotion?.mood;
+      if (nextMood) setMood(nextMood);
+      if (soundRef.current) speak("¡Ay! Qué lindo.");
+    } catch {
+      /* una caricia no necesita error visible */
+    }
+  }, [speak]);
+
+  const hasUserTurn = messages.some((message) => message.role === "user");
+  const moodLabel = MOOD_LABEL[mood] || mood;
+
+  const statusText = !online
+    ? "sin conexión"
+    : listening
+      ? "te escucha"
+      : thinking
+        ? "pensando"
+        : speaking
+          ? "hablando"
+          : booting || !ready
+            ? "despertando"
+            : "en línea";
+
   return (
-    <div className="app-shell">
-      <div className="app-noise" aria-hidden="true" />
-      <Sidebar view={view} onView={setView} state={state} online={online} />
+    <div className="companion">
+      <div className="companion__aurora" aria-hidden="true" />
+      <div className="companion__window">
+        <aside className="companion__side">
+          <div className="companion__stage">
+            <WallE
+              mood={mood}
+              thinking={thinking}
+              speaking={speaking}
+              petSignal={petSignal}
+              onPet={handlePet}
+            />
+          </div>
 
-      <div className="app-main">
-        <TopBar
-          view={view}
-          state={state}
-          online={online}
-          sound={sound}
-          onSound={() => setSound((current) => !current)}
-        />
-
-        <main className="app-view">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={view}
-              className="view"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          <div className="companion__identity">
+            <span className={`companion__pulse ${online ? "is-on" : "is-off"}`} />
+            <div className="companion__who">
+              <strong>WALL·E</strong>
+              <span>{statusText}</span>
+            </div>
+            <span className="companion__mood">{moodLabel}</span>
+            <button
+              type="button"
+              className="companion__pet"
+              onClick={handlePet}
+              title="Acariciar a WALL·E"
+              aria-label="Acariciar a WALL·E"
             >
-              {view === "dashboard" ? (
-                <DashboardView
-                  {...shared}
-                  chatSeed={chatSeed}
-                  onSeedUsed={handleSeedUsed}
-                />
-              ) : null}
-              {view === "control" ? <ControlView {...shared} /> : null}
-              {view === "vision" ? <VisionView {...shared} /> : null}
-              {view === "memory" ? <MemoryView {...shared} /> : null}
-              {view === "agenda" ? <AgendaView {...shared} /> : null}
-              {view === "settings" ? <SettingsView {...shared} /> : null}
-            </motion.div>
-          </AnimatePresence>
-        </main>
+              <HeartIcon />
+            </button>
+          </div>
+        </aside>
 
-        <footer className="status-bar">
-          <span className={`status-bar__dot ${online ? "is-ok" : "is-bad"}`} />
-          <span>{online ? "ENLACE LOCAL 127.0.0.1:8765" : "SIN CONEXIÓN CON EL SERVIDOR"}</span>
-          <i />
-          <span>MODELO {state?.model?.toUpperCase() || "WALL·E"}</span>
-          <i />
-          <span>{state?.connected ? `SERIAL ${state.port}` : "CUERPO EN SIMULACIÓN"}</span>
-          <i />
-          <span>{state?.ollama ? "OLLAMA OK" : "OLLAMA SIN RESPUESTA"}</span>
-          <span className="status-bar__spacer" />
-          <span>{latency ? `ÚLTIMA RESPUESTA ${latency}s` : "SIN TURNOS"}</span>
-          <i />
-          <span>UPTIME {uptime(state?.uptime)}</span>
-          <i />
-          <span className="status-bar__build">BUILD 026 · v{state?.version || "2.0"}</span>
-        </footer>
+        <section className="companion__chat">
+          <header className="companion__head">
+            <div className="companion__brand">
+              <span className="companion__brand-mark">W</span>
+              <div>
+                <strong>WALL·E</strong>
+                <span>compañero de conversación</span>
+              </div>
+            </div>
+            <div className="companion__head-actions">
+              <span className={`companion__live ${online ? "is-on" : "is-off"}`}>
+                {online ? "local" : "sin servidor"}
+              </span>
+              <button
+                type="button"
+                className={`companion__icon ${sound ? "is-active" : ""}`}
+                onClick={toggleSound}
+                title={sound ? "Silenciar la voz" : "Activar la voz"}
+                aria-label={sound ? "Silenciar la voz" : "Activar la voz"}
+                aria-pressed={sound}
+              >
+                {sound ? <SpeakerIcon /> : <MutedIcon />}
+              </button>
+            </div>
+          </header>
+
+          <div className="companion__thread" ref={threadRef}>
+            <AnimatePresence initial={false}>
+              {messages.map((message) => (
+                <motion.div
+                  key={message.id}
+                  className={`bubble-row bubble-row--${message.role}`}
+                  initial={{ opacity: 0, y: 8, scale: 0.985 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  {message.role === "assistant" ? (
+                    <span className="bubble-avatar" aria-hidden="true">
+                      W
+                    </span>
+                  ) : null}
+                  <div
+                    className={`bubble bubble--${message.role} ${
+                      message.error ? "bubble--error" : ""
+                    }`}
+                  >
+                    <p>{message.text}</p>
+                    {message.time ? (
+                      <span className="bubble__meta">{message.time}</span>
+                    ) : null}
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            {thinking ? (
+              <motion.div
+                className="bubble-row bubble-row--assistant"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <span className="bubble-avatar" aria-hidden="true">
+                  W
+                </span>
+                <div className="bubble bubble--assistant bubble--typing">
+                  <span className="typing" aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  <span className="bubble__meta">WALL·E está pensando</span>
+                </div>
+              </motion.div>
+            ) : null}
+          </div>
+
+          <div className="companion__composer-wrap">
+            {!hasUserTurn ? (
+              <div className="companion__suggestions">
+                {SUGGESTIONS.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => send(suggestion)}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {notice ? (
+              <div className="companion__notice" role="alert">
+                {notice}
+              </div>
+            ) : null}
+
+            <form className="composer" onSubmit={submit}>
+              <textarea
+                ref={composerRef}
+                className="composer__input"
+                value={draft}
+                onChange={handleDraft}
+                onKeyDown={handleKeyDown}
+                rows={1}
+                placeholder="Escribile a WALL·E…"
+                aria-label="Mensaje para WALL·E"
+              />
+              <div className="composer__actions">
+                <button
+                  type="button"
+                  className={`composer__mic ${listening ? "is-listening" : ""}`}
+                  onClick={toggleMic}
+                  disabled={!micSupported}
+                  title={
+                    micSupported
+                      ? listening
+                        ? "Detener el dictado"
+                        : "Hablar con WALL·E"
+                      : "Este navegador no tiene dictado"
+                  }
+                  aria-label={
+                    listening ? "Detener el dictado" : "Hablar con WALL·E"
+                  }
+                  aria-pressed={listening}
+                >
+                  <MicIcon />
+                </button>
+                <button
+                  type="submit"
+                  className="composer__send"
+                  disabled={!draft.trim() || thinking}
+                  title="Enviar"
+                  aria-label="Enviar mensaje"
+                >
+                  <SendIcon />
+                </button>
+              </div>
+            </form>
+
+            <p className="companion__hint">
+              {listening
+                ? interim || "Te escucho…"
+                : "Enter para enviar · Shift + Enter para otra línea"}
+            </p>
+          </div>
+        </section>
       </div>
     </div>
+  );
+}
+
+function HeartIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
+      <path
+        d="M12 20s-7-4.35-7-9.2A4.3 4.3 0 0 1 12 7.8a4.3 4.3 0 0 1 7 3c0 4.85-7 9.2-7 9.2Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SpeakerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true">
+      <path
+        d="M4 9.5v5h3l4 3v-11l-4 3H4Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15 9.2a4 4 0 0 1 0 5.6M17.6 6.8a7.4 7.4 0 0 1 0 10.4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function MutedIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true">
+      <path
+        d="M4 9.5v5h3l4 3v-11l-4 3H4Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m15.5 9.5 4 5m0-5-4 5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function MicIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true">
+      <rect
+        x="9"
+        y="4"
+        width="6"
+        height="10"
+        rx="3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M6.5 11.5a5.5 5.5 0 0 0 11 0M12 17v3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function SendIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+      <path
+        d="M5 12.2 19 5l-3.2 14-4.3-5.1L5 12.2Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m11.5 13.9 3.6-3.6"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

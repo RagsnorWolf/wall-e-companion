@@ -43,7 +43,7 @@ _STOPWORDS = {
 
 
 class Memory:
-    def __init__(self, path: str | Path = "memory.db", max_turns: int = 4) -> None:
+    def __init__(self, path: str | Path = "memory.db", max_turns: int = 6) -> None:
         self.path = str(path)
         self.max_turns = max_turns
         self.db = sqlite3.connect(self.path, check_same_thread=False)
@@ -70,7 +70,7 @@ class Memory:
         self.db.commit()
 
     def recent_turns(self, limit: int | None = None) -> list[dict[str, str]]:
-        limit = limit or self.max_turns
+        limit = limit or self.max_turns * 2
         rows = self.db.execute(
             "SELECT role, content FROM turns ORDER BY id DESC LIMIT ?", (limit,)
         ).fetchall()

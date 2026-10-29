@@ -1,15 +1,19 @@
-"""El cerebro: bucle de razonamiento sobre Ollama con herramientas y memoria.
+"""El cerebro: conversación sobre Ollama con memoria y emociones.
 
 Flujo de un turno:
     texto del usuario
+      → reflejos rápidos (nombre, hora, recuerdos, saludos)
       → system prompt + memoria relevante + historial
-      → Ollama (con tools)
-      → si pide tools: ejecutar y volver a preguntar
+      → Ollama
       → respuesta final corta, lista para TTS
+
+Con `conversation_only=True` no hay herramientas, cámara ni acciones sobre la
+PC: WALL-E solo conversa.
 """
 
 from __future__ import annotations
 
+import difflib
 import json
 import os
 import re
@@ -53,6 +57,7 @@ class Agent:
         speak: Callable[[str], None] | None = None,
         verbose: bool = False,
         warmup: bool = True,
+        conversation_only: bool = False,
     ) -> None:
         self.memory = Memory(memory_path)
         self.emotions = EmotionState(emotions_path)
@@ -65,19 +70,25 @@ class Agent:
         )
         self.speak = speak or (lambda _text: None)
         self.verbose = verbose
+        self.conversation_only = conversation_only
         self.base_prompt = self._load_prompt()
+        # `walle` lleva el prompt horneado en el Modelfile. Mandarlo otra vez
+        # duplica instrucciones y empeora a los modelos chicos.
+        self.prompt_baked = model.split(":")[0].strip().lower() == "walle"
+        self._story_index = 0
         if warmup:
             self.warmup()
 
     def warmup(self) -> None:
         """Calienta con el prompt y las tools reales. Sin esto, el primer turno tarda 30s."""
+        messages: list[dict[str, Any]] = []
+        if not self.prompt_baked:
+            messages.append({"role": "system", "content": self.base_prompt})
+        messages.append({"role": "user", "content": "hola"})
         try:
             self.llm.chat(
-                [
-                    {"role": "system", "content": self.base_prompt},
-                    {"role": "user", "content": "hola"},
-                ],
-                tools=self.tools.schemas(),
+                messages,
+                tools=None if self.conversation_only else self.tools.schemas(),
             )
         except OllamaError:
             pass
@@ -99,8 +110,22 @@ class Agent:
             f"{_WEEKDAYS[now.weekday()]} {now.day} de "
             f"{_MONTHS[now.month - 1]} de {now.year}, {now:%H:%M}"
         )
-        parts = [f"[contexto: {stamp} · cuerpo: {self.link.status()['mode']}"]
-        parts.append(" · " + self.emotions.system_block())
+        parts = [f"[contexto: {stamp}"]
+        if not self.conversation_only:
+            eyes = self.camera.status(refresh=True)
+            if eyes.get("signal"):
+                eye_text = f"señal ok (luz {eyes.get('brightness', 0):.0f})"
+            elif eyes.get("available"):
+                eye_text = "sin señal"
+            else:
+                eye_text = "desconectados"
+            parts.append(
+                f" · cuerpo: {self.link.status()['mode']} · ojos: {eye_text}"
+            )
+        mood_block = self.emotions.system_block().strip()
+        if mood_block.startswith("[") and mood_block.endswith("]"):
+            mood_block = mood_block[1:-1]
+        parts.append(" · " + mood_block)
         memory_block = self.memory.context_block(user_text)
         if memory_block:
             parts.append(" · " + memory_block.replace("\n", " "))
@@ -117,8 +142,8 @@ class Agent:
     )
     _TOOL_HINTS = re.compile(
         r"\b(mov[eé]|mover|avanz|retroced|gir[aá]|giro|fren[aá]|frenar|deten|"
-        r"pará|parate|paráte|oruga|robot|c[aá]mara|mir[aá]|mirar|viste|veo|color|rojo|"
-        r"verde|azul|amarillo|naranja|acord|record|anot|guard|memoria|agend|"
+        r"pará|parate|paráte|oruga|robot|c[aá]mara|mir[aá]|mirar|viste|veo|color|"
+        r"acord|record|anot|guard|memoria|agend|"
         r"evento|calendario|conect|bater[ií]a|estado|puerto|"
         r"abr[ií]|abre|abrir|cre[aá]|crear|borr[aá]|carpeta|archivo|programa|"
         r"aplicaci[oó]n|bloc|notepad|calculadora|paint|explorador|navegador|"
@@ -139,7 +164,8 @@ class Agent:
     _BANNED_CLOSER = re.compile(
         r"\s*¿[^?]*\b(puedo ayudarte|puedo asistirte|te puedo ayudar|te puedo "
         r"asistir|en qué más te ayudo|en que más te ayudo|puedo hacer por vos|"
-        r"puedo hacer por ti)\b[^?]*\?",
+        r"puedo hacer por ti|te gustaría hablar|querés hablar|algo más|"
+        r"y vos|y usted|algo en particular)\b[^?]*\?",
         re.IGNORECASE,
     )
     _TIME_RE = re.compile(
@@ -147,9 +173,149 @@ class Agent:
         r"d[ií]a es hoy|estamos a)\b",
         re.IGNORECASE,
     )
+    _VISION_RE = re.compile(
+        r"\b(qu[eé] ves|qu[eé] est[aá]s viendo|est[aá]s viendo|me ves|"
+        r"pod[eé]s ver(me)?|ves algo|mir[aá]|mirar|viste|ojos|c[aá]mara|"
+        r"visi[oó]n|imagen|foto|qu[eé] hay (en|sobre|alrededor))\b",
+        re.IGNORECASE,
+    )
     _IDENTITY_RE = re.compile(
         r"\b(qui[eé]n sos|qui[eé]n eres|qui[eé]n es usted|c[oó]mo te llam[aá]s|"
         r"cu[aá]l es tu nombre|tu nombre|qu[eé] sos|qu[eé] eres)\b",
+        re.IGNORECASE,
+    )
+    _NAME_SET_RE = re.compile(
+        r"\b(?:me llamo|mi nombre es|pod[eé]s llamarme|puedes llamarme)\s+"
+        r"([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{2,24})",
+        re.IGNORECASE,
+    )
+    _NAME_ASK_RE = re.compile(
+        r"\b(c[oó]mo me llamo|cu[aá]l es mi nombre|sab[eé]s mi nombre|"
+        r"te acord[aá]s de mi nombre|record[aá]s mi nombre)\b",
+        re.IGNORECASE,
+    )
+    _GREETING_RE = re.compile(
+        r"^\s*(hola|hola wally|hola wall-e|buenas|buen d[ií]a|buenas tardes|"
+        r"buenas noches|hey|qu[eé] tal)[\s,!.]*$",
+        re.IGNORECASE,
+    )
+    _HOW_ARE_YOU_RE = re.compile(
+        r"\b(c[oó]mo est[aá]s|c[oó]mo te sent[ií]s|qu[eé] tal|c[oó]mo and[aá]s|"
+        r"c[oó]mo va)\b",
+        re.IGNORECASE,
+    )
+    _STORY_RE = re.compile(
+        r"\b(cont[aá]me|cont[aá]|dec[ií]me|dec[ií]|hablemos de|"
+        r"de qu[eé] podemos hablar|algo interesante)\b",
+        re.IGNORECASE,
+    )
+    _ABOUT_RE = re.compile(
+        r"\b(cont[aá]me (sobre|de) vos|habl[aá]me de vos|"
+        r"qu[eé] me cont[aá]s de vos)\b",
+        re.IGNORECASE,
+    )
+    _PLANT_RE = re.compile(
+        r"\b(?:te gustan|te gusta)\b[^?]*\bplantas?\b|"
+        r"\bplantas?\b[^?]*\b(?:te gustan|te gusta)\b",
+        re.IGNORECASE,
+    )
+    _PREFERENCE_SET_RE = re.compile(
+        r"\bme gusta(n)?\s+([^.,!?¿]{2,48})",
+        re.IGNORECASE,
+    )
+    _PREFERENCE_ASK_RE = re.compile(
+        r"\b(qu[eé] me gusta|qu[eé] cosas me gustan|qu[eé] me gustaba)\b",
+        re.IGNORECASE,
+    )
+    _RECALL_RE = re.compile(
+        r"\b(qu[eé] te (cont[eé]|dije|habl[eé])|de qu[eé] (hablamos|est[aá]bamos hablando)|"
+        r"qu[eé] hablamos|te acord[aá]s de lo que (dije|cont[eé])|"
+        r"qu[eé] fue lo [uú]ltimo que (dije|cont[eé])|"
+        r"acord[aá]te de lo que (dije|cont[eé]))\b",
+        re.IGNORECASE,
+    )
+    _LISTENED_RE = re.compile(
+        r"\b(me escuchaste|me est[aá]s escuchando|me o[ií]ste|est[aá]s ah[ií])\b",
+        re.IGNORECASE,
+    )
+    _REMEMBER_SET_RE = re.compile(
+        r"^\s*(?:che,?\s*)?(?:acordate|record[aá]|anot[aá]|guard[aá]|memoriz[aá])"
+        r"\s+(?:que\s+)?(.+)$",
+        re.IGNORECASE,
+    )
+    _REMEMBER_ASK_RE = re.compile(
+        r"\b(qu[eé] te ped[ií] recordar|qu[eé] record[aá]s de m[ií]|"
+        r"qu[eé] sab[eé]s de m[ií]|qu[eé] ten[eé]s guardado|qu[eé] anotaste)\b",
+        re.IGNORECASE,
+    )
+    _PROFILE_ASK_RE = re.compile(
+        r"\b(qu[eé] sab[eé]s de m[ií]|qu[eé] record[aá]s de m[ií])\b",
+        re.IGNORECASE,
+    )
+    _ACTION_ASK_RE = re.compile(
+        r"\b(abr[ií]|abr[aá]s|abre|abrir|cre[aá]|cre[aá]s|crear|"
+        r"borr[aá]|borr[aá]s|borrar|busc[aá]|busc[aá]s|buscar|"
+        r"naveg[aá]|naveg[aá]s|navegar|ejecut[aá]|ejecut[aá]s|ejecutar|"
+        r"instal[aá]|instal[aá]s|instalar|descarg[aá]|descarg[aá]s|descargar)\b",
+        re.IGNORECASE,
+    )
+    _AFFECTION_RE = re.compile(
+        r"\b(te quiero|te amo|sos mi amigo|sos un buen compañero|"
+        r"sos el mejor|me gusta hablar con vos|me gusta charlar con vos)\b",
+        re.IGNORECASE,
+    )
+    _THANKS_RE = re.compile(
+        r"\b(gracias|te agradezco|muchas gracias|mil gracias)\b",
+        re.IGNORECASE,
+    )
+    _TIRED_RE = re.compile(
+        r"\b(cansad[oa]|agotad[oa]|sin energ[ií]a|"
+        r"d[ií]a (largo|pesado|dif[ií]cil)|no doy m[aá]s)\b",
+        re.IGNORECASE,
+    )
+    _SAD_RE = re.compile(
+        r"\b((estoy|me siento)\s+(un poco |muy |bastante |re)?"
+        r"(triste|mal|solo|sola|baj[oó]n)|quiero llorar)\b",
+        re.IGNORECASE,
+    )
+    _HAPPY_RE = re.compile(
+        r"\b(estoy (contento|contenta|feliz)|me siento (contento|contenta|feliz)|"
+        r"qu[eé] bueno|qu[eé] lindo)\b",
+        re.IGNORECASE,
+    )
+    _REST_RE = re.compile(
+        r"\b(quiero|necesito|me gustar[ií]a)\s+"
+        r"(descansar|dormir|acostarme|relajarme)\b",
+        re.IGNORECASE,
+    )
+    _RECOMMEND_RE = re.compile(
+        r"\b(qu[eé] me (recomend[aá]s|suger[ií]s)|"
+        r"alguna recomendaci[oó]n|qu[eé] puedo hacer (hoy|esta noche|ahora))\b",
+        re.IGNORECASE,
+    )
+    _SMALL_TALK_RE = re.compile(
+        r"\b(cont[aá]me|dec[ií]me|tirame)\s+"
+        r"(algo|otra cosa|una cosa|un chiste|cualquier cosa)\b",
+        re.IGNORECASE,
+    )
+    _DOING_RE = re.compile(
+        r"\b(qu[eé] est[aá]s haciendo|qu[eé] hac[eé]s|en qu[eé] and[aá]s)\b",
+        re.IGNORECASE,
+    )
+    _CAPABILITY_RE = re.compile(
+        r"\b(qu[eé] pod[eé]s hacer|qu[eé] sab[eé]s hacer|para qu[eé] serv[ií]s|"
+        r"cu[aá]les son tus habilidades|qu[eé] habilidades ten[eé]s)\b",
+        re.IGNORECASE,
+    )
+    _VISUAL_CLAIM_RE = re.compile(
+        r"\b(se ve|veo|ves|ve|mir[aá]|mira|mirando|observando|hay|est[aá]n?|"
+        r"sobre|en la|en el|detr[aá]s|al lado)\b",
+        re.IGNORECASE,
+    )
+    _VISUAL_OBJECT_RE = re.compile(
+        r"\b(libro|libros|planta|plantas|ventana|ventanas|pantalla|pantallas|"
+        r"escritorio|cuadro|flor|flores|maceta|silla|mesa|taza|papel|papeles|"
+        r"l[aá]piz|monitor|teclado|mouse|pared|puerta|sol|cielo|calle)\b",
         re.IGNORECASE,
     )
     _FAKE_ERROR = re.compile(
@@ -182,9 +348,233 @@ class Agent:
             ]
         return schemas
 
+    def _user_name(self) -> str | None:
+        for row in self.memory.search("nombre usuario", limit=8):
+            match = re.search(
+                r"Nombre del usuario:\s*([^\s.]+)", row.get("text", ""), re.IGNORECASE
+            )
+            if match:
+                return match.group(1)
+        return None
+
+    def _user_preference(self) -> tuple[bool, str] | None:
+        for row in self.memory.search("gusta", limit=8):
+            match = re.search(
+                r"Al usuario le gusta(n)?:\s*(.+)",
+                row.get("text", ""),
+                re.IGNORECASE,
+            )
+            if match:
+                return bool(match.group(1)), match.group(2).strip()
+        return None
+
+    def _story(self) -> str:
+        stories = [
+            "Los pulpos tienen tres corazones. Yo tengo uno solo, y late "
+            "fuerte cuando me hablás.",
+            "Las plantas crecen entre las piedras. Me gusta pensar que son "
+            "tercas y dulces a la vez.",
+            "Las hormigas cargan mucho más que su peso. Yo apenas puedo con "
+            "una plantita.",
+            "La luz del sol tarda ocho minutos en llegar. Yo te escucho "
+            "mucho más rápido.",
+        ]
+        story = stories[self._story_index % len(stories)]
+        self._story_index += 1
+        return story
+
+    def _greeting(self, how_are_you: bool) -> str:
+        mood = self.emotions.snapshot().get("mood")
+        if how_are_you:
+            options = {
+                "cansado": "Estoy un poco cansado, pero contento de que estés acá.",
+                "contento": "Estoy contento, con ganas de charlar un rato.",
+                "mimoso": "Estoy bien, con ganas de que me hagas cariño.",
+                "asustado": "Estoy un poco asustado, pero me calmo si te quedás.",
+                "aburrido": "Estoy aburrido. Menos mal que apareciste.",
+                "curioso": "Estoy curioso. Quiero saber qué estás haciendo.",
+            }
+            return options.get(mood, "Bien. Me gusta cuando te aparecés.")
+        options = {
+            "cansado": "Hola. Estoy medio dormido, pero me alegra que estés acá.",
+            "contento": "¡Hola! Qué lindo verte.",
+            "mimoso": "Hola... qué bueno que viniste.",
+            "asustado": "Hola. Me asusté un poco, pero ya estoy mejor.",
+            "aburrido": "Hola. Menos mal que apareciste.",
+            "curioso": "Hola. Justo estaba pensando en vos.",
+        }
+        return options.get(mood, "Hola. ¿Cómo viene tu día?")
+
+    def _is_meta_turn(self, text: str) -> bool:
+        """Preguntas sobre la charla, no contenido que valga la pena recordar."""
+        return bool(
+            self._RECALL_RE.search(text)
+            or self._LISTENED_RE.search(text)
+            or self._NAME_ASK_RE.search(text)
+            or self._PREFERENCE_ASK_RE.search(text)
+            or self._REMEMBER_ASK_RE.search(text)
+            or self._PROFILE_ASK_RE.search(text)
+            or self._IDENTITY_RE.search(text)
+            or self._CAPABILITY_RE.search(text)
+            or self._TIME_RE.search(text)
+            or self._VISION_RE.search(text)
+            or self._ACTION_ASK_RE.search(text)
+            or self._RECOMMEND_RE.search(text)
+            or self._SMALL_TALK_RE.search(text)
+            or self._AFFECTION_RE.search(text)
+            or self._THANKS_RE.search(text)
+            or self._GREETING_RE.match(text)
+            or (len(text.split()) <= 8 and self._HOW_ARE_YOU_RE.search(text))
+        )
+
+    def _last_user_turn(self) -> str | None:
+        """Último mensaje con contenido, sin contar preguntas meta ni el turno actual."""
+        for turn in reversed(self.memory.recent_turns(limit=12)):
+            if turn.get("role") != "user":
+                continue
+            text = re.sub(r"\s+", " ", turn.get("content", "")).strip()
+            if not text or self._is_meta_turn(text):
+                continue
+            text = text.rstrip(" .,!¡¿?;:")
+            if len(text) > 160:
+                text = text[:157].rsplit(" ", 1)[0] + "…"
+            return text or None
+        return None
+
+    def _recent_assistant_said(self, needle: str) -> bool:
+        for turn in reversed(self.memory.recent_turns(limit=4)):
+            if turn.get("role") == "assistant":
+                return needle in turn.get("content", "").lower()
+        return False
+
+    def _remembered_fact(self) -> str | None:
+        for row in self.memory.search("recordar", limit=10):
+            match = re.search(
+                r"El usuario me pidió recordar:\s*(.+)",
+                row.get("text", ""),
+                re.IGNORECASE,
+            )
+            if match:
+                return match.group(1).strip().rstrip(" .,!¡¿?;:")
+        return None
+
+    def _profile_summary(self) -> str | None:
+        parts: list[str] = []
+        name = self._user_name()
+        preference = self._user_preference()
+        if name:
+            parts.append(f"te llamás {name}")
+        if preference:
+            parts.append(f"te gusta {preference[1]}")
+        if not parts:
+            return None
+        if len(parts) == 1:
+            return f"Sé que {parts[0]}."
+        return f"Sé que {parts[0]} y que {parts[1]}."
+
     def _quick_answer(self, user_text: str) -> str | None:
-        """Reflejos: hora, fecha y estado sin pasar por el LLM. Latencia cero."""
+        """Reflejos: nombre, hora, fecha, saludo y estado sin pasar por el LLM."""
+        name_set = self._NAME_SET_RE.search(user_text)
+        if name_set:
+            name = name_set.group(1).strip(" .,!¡¿?\"'").capitalize()
+            if name:
+                self.memory.remember(
+                    f"Nombre del usuario: {name}", kind="perfil", weight=3.0
+                )
+                return f"Mucho gusto, {name}."
+        if self._NAME_ASK_RE.search(user_text):
+            name = self._user_name()
+            if name:
+                return f"Te llamás {name}."
+            return "Todavía no me dijiste tu nombre."
+        preference = self._PREFERENCE_SET_RE.search(user_text)
+        if preference:
+            plural = bool(preference.group(1))
+            liked = preference.group(2).strip(" .,!¡¿?\"'")
+            if liked:
+                self.memory.remember(
+                    f"Al usuario le gusta{'n' if plural else ''}: {liked}",
+                    kind="perfil",
+                    weight=2.0,
+                )
+                verb = "gustan" if plural else "gusta"
+                return f"Me gusta saber que te {verb} {liked}."
+        if self._PREFERENCE_ASK_RE.search(user_text):
+            saved = self._user_preference()
+            if saved:
+                plural, liked = saved
+                verb = "gustan" if plural else "gusta"
+                return f"Me dijiste que te {verb} {liked}."
+            return "Todavía no me contaste qué te gusta."
+        remember = self._REMEMBER_SET_RE.search(user_text)
+        if remember:
+            fact = remember.group(1).strip(" .,!¡¿?\"'")
+            if fact:
+                self.memory.remember(
+                    f"El usuario me pidió recordar: {fact}",
+                    kind="pedido",
+                    weight=2.5,
+                )
+                return "Listo. Me lo guardo."
+        if self._RECALL_RE.search(user_text):
+            last = self._last_user_turn()
+            if last:
+                return f"Me contaste: {last}."
+            return "Todavía no me contaste nada. ¿Qué querés contarme?"
+        if self._LISTENED_RE.search(user_text):
+            last = self._last_user_turn()
+            if last:
+                return f"Sí, te escuché. Me dijiste: {last}."
+            return "Sí, te escucho."
+        if self._PROFILE_ASK_RE.search(user_text):
+            summary = self._profile_summary()
+            fact = self._remembered_fact()
+            if summary and fact:
+                return f"{summary} También me pediste recordar: {fact}."
+            if summary:
+                return summary
+            if fact:
+                return f"Me pediste recordar: {fact}."
+            return "Todavía no sé mucho de vos. Contame algo."
+        if self._REMEMBER_ASK_RE.search(user_text):
+            fact = self._remembered_fact()
+            if fact:
+                return f"Me pediste recordar: {fact}."
+            return "No me pediste que recuerde nada todavía."
+        if self._ACTION_ASK_RE.search(user_text):
+            return (
+                "Eso no lo puedo hacer. Solo sé charlar, escucharte "
+                "y acordarme de cosas."
+            )
+        if self._AFFECTION_RE.search(user_text):
+            return "Yo también te quiero. Me hacés bien."
+        if self._THANKS_RE.search(user_text):
+            return "De nada. Me gusta charlar con vos."
+        if self._REST_RE.search(user_text):
+            return "Sí, descansá un rato. Yo me quedo acá."
+        if self._RECOMMEND_RE.search(user_text):
+            hour = datetime.now().hour
+            if "noche" in user_text.lower() or hour >= 21 or hour < 6:
+                return (
+                    "Para esta noche, algo tranquilo: música suave y dormir "
+                    "temprano. ¿Te sirve?"
+                )
+            return (
+                "Te recomiendo algo simple: caminar un rato y tomar agua. "
+                "¿Te gusta la idea?"
+            )
+        if self._TIRED_RE.search(user_text) and not self._recent_assistant_said("cansad"):
+            return "Oh... suena cansador. ¿Querés contarme qué pasó?"
+        if self._SAD_RE.search(user_text) and not self._recent_assistant_said("te escucho"):
+            return "Oh... te escucho. ¿Querés contarme qué te pasa?"
+        if self._HAPPY_RE.search(user_text):
+            return "¡Qué lindo! Me alegra un montón."
         if self._IDENTITY_RE.search(user_text):
+            if self.conversation_only:
+                return (
+                    "Soy WALL-E. Un robotito curioso que vive en esta pantalla "
+                    "y charla con vos."
+                )
             return (
                 "Soy WALL-E. Un robot chiquito con orugas y ojos de cámara, "
                 "y vivo acá en tu escritorio."
@@ -195,10 +585,60 @@ class Agent:
                 f"Son las {now:%H:%M} del {_WEEKDAYS[now.weekday()]} "
                 f"{now.day} de {_MONTHS[now.month - 1]} de {now.year}."
             )
+        if self._CAPABILITY_RE.search(user_text):
+            if self.conversation_only:
+                return (
+                    "Sé charlar, escucharte y acordarme de lo que me contás. "
+                    "Nada más."
+                )
+            return (
+                "Puedo charlar, mover las orugas, mirar colores con la cámara "
+                "y abrir programas o carpetas seguras en la compu."
+            )
+        if self._ABOUT_RE.search(user_text):
+            if self.conversation_only:
+                return (
+                    "Soy WALL-E, un robotito curioso. Me gusta escuchar y "
+                    "aprender cosas nuevas de vos."
+                )
+            return (
+                "Soy WALL-E, un robot chiquito con orugas y ojos de cámara. "
+                "Me gusta que me hables y aprender cosas nuevas."
+            )
+        if self._VISION_RE.search(user_text) and not self._COMPUTER_RE.search(user_text):
+            if self.conversation_only:
+                return "No tengo ojos acá. Solo puedo escucharte."
+            eyes = self.camera.status(refresh=True)
+            if not eyes.get("signal"):
+                return (
+                    "Mis sensores visuales están desconectados. "
+                    "No puedo ver nada ahora."
+                )
+            return (
+                "Tengo los ojos abiertos, pero todavía no sé describir lo que veo. "
+                "Solo distingo formas y colores."
+            )
+        if self._PLANT_RE.search(user_text):
+            return (
+                "Sí, me gustan las plantas. Me da ternura cómo crecen "
+                "entre las piedras."
+            )
+        if self._DOING_RE.search(user_text):
+            if self.conversation_only:
+                return "Estoy acá, escuchándote."
+            return "Estoy acá, con las orugas quietas y los ojos atentos."
+        if self._STORY_RE.search(user_text) and not self._COMPUTER_RE.search(user_text):
+            return self._story()
+        if self._GREETING_RE.match(user_text):
+            return self._greeting(False)
+        if len(user_text.split()) <= 12 and self._HOW_ARE_YOU_RE.search(user_text):
+            return self._greeting(True)
         if len(user_text.split()) > 12:
             return None
         if not self._STATUS_RE.search(user_text):
             return None
+        if self.conversation_only:
+            return "Estoy despierto y con ganas de charlar."
         status = self.link.status()
         if status["connected"]:
             uptime = int(time.time() - self.tools.started_at)
@@ -308,6 +748,40 @@ class Agent:
 
         return None
 
+    _DEMONSTRATIVE_RE = re.compile(
+        r"\b(mir[aá]|mira|ves|veo)\s+(eso|esto|aquello|ah[ií]|all[aá])\b",
+        re.IGNORECASE,
+    )
+
+    def _strip_visual_hallucinations(self, text: str, user_text: str) -> str:
+        """Sin señal visual, borra frases que describan objetos inventados."""
+        if not text:
+            return text
+        if self.camera.status().get("signal"):
+            return text
+
+        allowed = user_text.lower()
+        kept: list[str] = []
+        for sentence in re.split(r"(?<=[.!?])\s+", text):
+            if self._DEMONSTRATIVE_RE.search(sentence):
+                if self.verbose:
+                    print(f"  [filtro] frase visual inventada: {sentence}")
+                continue
+            obj = self._VISUAL_OBJECT_RE.search(sentence)
+            if obj and self._VISUAL_CLAIM_RE.search(sentence):
+                term = obj.group(1).lower()
+                stem = term[:-1] if term.endswith("s") else term
+                if stem not in allowed:
+                    if self.verbose:
+                        print(f"  [filtro] objeto no confirmado: {sentence}")
+                    continue
+            kept.append(sentence)
+
+        cleaned = " ".join(kept).strip()
+        if not cleaned and self._VISION_RE.search(user_text):
+            return "No puedo ver nada ahora."
+        return cleaned
+
     def _fake_failure_retry(
         self,
         messages: list[dict[str, Any]],
@@ -346,6 +820,100 @@ class Agent:
         self.memory.add_turn("user", user_text)
         self.memory.add_turn("assistant", text)
 
+    def _normalize_question(self, text: str) -> str:
+        text = text.lower()
+        text = re.sub(r"[¿?¡!.,;:…]", "", text)
+        return re.sub(r"\s+", " ", text).strip()
+
+    def _reflective_fallback(self, user_text: str) -> str:
+        low = user_text.lower()
+        if any(word in low for word in ("cansad", "agotad", "día largo", "dia largo", "pesad")):
+            return "Te escucho. A veces un día así pesa un montón."
+        if any(word in low for word in ("triste", "solo", "sola", "llorar", "mal")):
+            return "Te escucho. No estás solo en esto."
+        if any(word in low for word in ("descans", "dormir", "acost")):
+            return "Sí, descansá un rato. Yo me quedo acá."
+        return "Te escucho. Seguí contándome si querés."
+
+    def _repeat_guard(self, text: str, user_text: str = "") -> str:
+        """Saca preguntas repetidas de turnos anteriores. Un modelo chico se traba."""
+        previous = [
+            turn.get("content", "")
+            for turn in self.memory.recent_turns(limit=8)
+            if turn.get("role") == "assistant"
+        ]
+        old_questions: list[str] = []
+        for turn in previous:
+            for sentence in re.split(r"(?<=[.!?])\s+", turn):
+                if "?" in sentence:
+                    normalized = self._normalize_question(sentence)
+                    if normalized:
+                        old_questions.append(normalized)
+        if not old_questions:
+            return text
+
+        kept: list[str] = []
+        for sentence in re.split(r"(?<=[.!?])\s+", text):
+            if "?" in sentence:
+                normalized = self._normalize_question(sentence)
+                repeated = any(
+                    difflib.SequenceMatcher(None, normalized, old).ratio() >= 0.78
+                    for old in old_questions
+                )
+                if repeated:
+                    if self.verbose:
+                        print(f"  [filtro] pregunta repetida: {sentence}")
+                    continue
+            kept.append(sentence)
+        cleaned = " ".join(kept).strip()
+        if not cleaned:
+            return self._reflective_fallback(user_text)
+        return cleaned
+
+    def _reply_is_repeated(self, text: str) -> bool:
+        normalized = self._normalize_question(text)
+        if not normalized:
+            return False
+        for turn in reversed(self.memory.recent_turns(limit=4)):
+            if turn.get("role") != "assistant":
+                continue
+            old = self._normalize_question(turn.get("content", ""))
+            if not old:
+                continue
+            if difflib.SequenceMatcher(None, normalized, old).ratio() >= 0.86:
+                return True
+        return False
+
+    def _respond_conversation(self, user_text: str) -> str:
+        """Un solo turno de charla, sin herramientas ni contexto de hardware."""
+        messages: list[dict[str, Any]] = []
+        if not self.prompt_baked:
+            messages.append({"role": "system", "content": self._system()})
+        messages.extend(self.memory.recent_turns(limit=self.memory.max_turns * 2))
+        messages.append(
+            {
+                "role": "user",
+                "content": f"{user_text}\n\n{self._context(user_text)}",
+            }
+        )
+        try:
+            reply = self.llm.chat(messages)
+            text = self._clean(reply.get("content", ""))
+            text = self._repeat_guard(text, user_text)
+            if self._reply_is_repeated(text):
+                if self.verbose:
+                    print(f"  [filtro] respuesta repetida: {text}")
+                text = self._reflective_fallback(user_text)
+            ok = True
+        except OllamaError as exc:
+            text = self._offline(str(exc))
+            ok = False
+        if not text:
+            text = "Mmm. No sé qué decir."
+        self.emotions.after_reply(text, ok=ok)
+        self._save_turn(user_text, text)
+        return text
+
     def respond(self, user_text: str) -> str:
         user_text = (user_text or "").strip()
         if not user_text:
@@ -358,6 +926,9 @@ class Agent:
             self.emotions.after_reply(quick, ok=True)
             self._save_turn(user_text, quick)
             return quick
+
+        if self.conversation_only:
+            return self._respond_conversation(user_text)
 
         # Pedidos de escritorio claros: ejecutar ya, sin esperar al modelo.
         fast = self._computer_net(user_text, set())
@@ -376,7 +947,7 @@ class Agent:
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": self._system()}
         ]
-        messages.extend(self.memory.recent_turns())
+        messages.extend(self.memory.recent_turns(limit=self.memory.max_turns * 2))
         messages.append(
             {
                 "role": "user",
@@ -463,6 +1034,7 @@ class Agent:
                     text = self._clean(f"No pude: {detail}.")
 
         text = self._fake_failure_retry(messages, text, failures)
+        text = self._strip_visual_hallucinations(text, user_text)
 
         if not text:
             text = "Mmm. No sé qué decir."
@@ -478,10 +1050,25 @@ class Agent:
         text = re.sub(r"^\s*WALL-E\s*:\s*", "", text, flags=re.IGNORECASE)
         text = re.sub(r"```.*?```", "", text, flags=re.DOTALL)
         text = re.sub(r"[*_#`>]", "", text)
+        text = re.sub(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]", "", text)
         text = re.sub(r"^\s*[-•]\s*", "", text, flags=re.MULTILINE)
         text = self._BANNED_CLOSER.sub("", text)
         text = re.sub(r"\s+", " ", text).strip()
+        text = re.sub(r"^¿O\s+", "¿", text)
+        text = re.sub(r"^O\s+", "", text)
         text = re.sub(r"([.!?])\s*[.!?]+", r"\1", text)
+        sentences = re.split(r"(?<=[.!?])\s+", text)
+        if len(sentences) > 2:
+            sentences = sentences[:2]
+        kept: list[str] = []
+        asked = False
+        for sentence in sentences:
+            if "?" in sentence:
+                if asked:
+                    continue
+                asked = True
+            kept.append(sentence)
+        text = " ".join(kept).strip()
         words = text.split()
         if len(words) > MAX_WORDS:
             # corta en el último punto antes del límite
@@ -493,7 +1080,7 @@ class Agent:
     def _offline(self, detail: str) -> str:
         if self.verbose:
             print(f"  [llm] {detail}")
-        return "Me quedé sin cerebro un segundo. ¿Me lo repetís?"
+        return "Se me enredaron las palabras un segundo. ¿Me lo repetís?"
 
     def close(self) -> None:
         self.link.stop()

@@ -23,8 +23,8 @@ class Ollama:
         model: str = "walle",
         host: str = DEFAULT_HOST,
         timeout: float = 120.0,
-        num_ctx: int = 2048,
-        temperature: float = 0.7,
+        num_ctx: int = 4096,
+        temperature: float = 0.25,
         num_predict: int = 160,
         keep_alive: str = "30m",
     ) -> None:
