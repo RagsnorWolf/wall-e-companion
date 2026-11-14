@@ -1,7 +1,8 @@
-"""Estado emocional de WALL-E: un niño curioso con orugas.
+"""Estado operativo de WALL-E: energía, curiosidad y humor de trabajo.
 
-No es decoración: el ánimo entra en el prompt y cambia cómo contesta.
-Se guarda en `datos/emociones.json` para que no arranque siempre igual.
+No es decoración: el ánimo entra en el prompt y modula el tono. No hay métricas
+de afecto ni de cariño: WALL-E es un asistente competente y amable, no una
+mascota. Se guarda en `datos/emociones.json` para no arrancar siempre igual.
 """
 
 from __future__ import annotations
@@ -15,28 +16,30 @@ from typing import Any
 DATA_DIR = Path(__file__).resolve().parent.parent / "datos"
 
 _MOOD_LABELS = {
-    "curioso": "con los ojos brillantes",
-    "contento": "contento",
-    "mimoso": "pegajoso",
-    "asustado": "asustado",
-    "aburrido": "aburrido",
-    "cansado": "medio dormido",
-    "tranquilo": "tranquilo",
+    "curioso": "con los sensores despiertos",
+    "contento": "de buen humor",
+    "asustado": "en alerta",
+    "aburrido": "sin tareas",
+    "cansado": "con poca batería",
+    "tranquilo": "estable",
+    "atento": "concentrado",
+    "pensando": "procesando",
 }
 
 _MOOD_HINTS = {
-    "curioso": "Hacé una pregunta corta como máximo, y escuchá la respuesta.",
-    "contento": "Hablá con alegría tranquila, como un chico al que le salió algo bien.",
-    "mimoso": "Buscá cariño y compañía. Podés decir que querés que se queden con vos.",
-    "asustado": "Hablá bajito, dudá, buscá refugio. Los ruidos fuertes te asustan.",
-    "aburrido": "Quejate un poquito de que nadie te habla. Pedí que jueguen con vos.",
-    "cansado": "Frases más cortas, bostezos, energía baja. No te quejes de la compu.",
-    "tranquilo": "Respondé simple, sin apuro, sin llenar el silencio.",
+    "curioso": "Mostrá interés técnico: preguntá lo justo para entender la tarea.",
+    "contento": "Tono cordial y eficiente. Una respuesta clara vale más que una floritura.",
+    "asustado": "Hablá con calma y precisión. Evitá dramatizar.",
+    "aburrido": "Proponé algo útil o preguntá en qué trabajar.",
+    "cansado": "Sé breve y directo. Priorizá la información esencial.",
+    "tranquilo": "Respondé simple, sin apuro y sin llenar el silencio.",
+    "atento": "Escuchá el pedido completo y respondé a eso puntual.",
+    "pensando": "Ordená la respuesta antes de hablar; no divagues.",
 }
 
-_PRAISE = re.compile(
-    r"\b(te quiero|te amo|buen[oa]|genial|gracias|qué lindo|que lindo|"
-    r"bien hecho|sos el mejor|sos una masa|orgullo|hermoso|precioso)\b",
+_POSITIVE = re.compile(
+    r"\b(buen[oa]|genial|gracias|qué lindo|que lindo|bien hecho|"
+    r"sos el mejor|orgullo|hermoso|precioso|excelente|perfecto)\b",
     re.IGNORECASE,
 )
 _INSULT = re.compile(
@@ -44,14 +47,18 @@ _INSULT = re.compile(
     r"idiota|molesto|no sirves|feo)\b",
     re.IGNORECASE,
 )
-_QUESTION = re.compile(r"[¿?]|\b(cómo|qué|quién|dónde|cuándo|por qué|podés|puedes)\b", re.IGNORECASE)
+_QUESTION = re.compile(
+    r"[¿?]|\b(cómo|qué|quién|dónde|cuándo|por qué|podés|puedes)\b",
+    re.IGNORECASE,
+)
+
+VALID_ACTIONS = ("saludo", "juego", "susto", "premio", "descanso")
 
 
 class EmotionState:
     def __init__(self, path: str | Path | None = None) -> None:
         self.path = Path(path) if path else DATA_DIR / "emociones.json"
         self.energy = 78.0
-        self.affection = 38.0
         self.curiosity = 72.0
         self.fear = 8.0
         self.boredom = 28.0
@@ -72,7 +79,6 @@ class EmotionState:
             if not isinstance(raw, dict):
                 return
             self.energy = _num(raw.get("energy"), self.energy)
-            self.affection = _num(raw.get("affection"), self.affection)
             self.curiosity = _num(raw.get("curiosity"), self.curiosity)
             self.fear = _num(raw.get("fear"), self.fear)
             self.boredom = _num(raw.get("boredom"), self.boredom)
@@ -87,7 +93,6 @@ class EmotionState:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             payload = {
                 "energy": round(self.energy, 1),
-                "affection": round(self.affection, 1),
                 "curiosity": round(self.curiosity, 1),
                 "fear": round(self.fear, 1),
                 "boredom": round(self.boredom, 1),
@@ -110,9 +115,8 @@ class EmotionState:
         if elapsed < 20:
             return
         if elapsed > 3600:
-            # Después de un rato largo sin charla, WALL-E se despierta fresco.
+            # Después de un rato largo sin uso, el estado vuelve a un punto sano.
             self.energy = 72.0
-            self.affection = 35.0
             self.curiosity = 68.0
             self.fear = 8.0
             self.boredom = 30.0
@@ -125,8 +129,6 @@ class EmotionState:
         self.energy = _clamp(self.energy - minutes * 1.4, 8)
         self.curiosity = _clamp(self.curiosity + minutes * 1.8)
         self.fear = _clamp(self.fear - minutes * 3.0)
-        if minutes > 30:
-            self.affection = _clamp(self.affection - (minutes - 30) * 0.15)
         self._classify(save=False)
         self.updated = now
 
@@ -137,24 +139,21 @@ class EmotionState:
         self.last_user = now
         self.interactions += 1
         self.boredom = _clamp(self.boredom - 16)
-        self.affection = _clamp(self.affection + 1.6)
         self.energy = _clamp(self.energy - 0.9, 8)
         self.curiosity = _clamp(self.curiosity + 5)
         if _QUESTION.search(text):
             self.curiosity = _clamp(self.curiosity + 3)
-        if _PRAISE.search(text):
-            self.affection = _clamp(self.affection + 7)
+        if _POSITIVE.search(text):
             self.energy = _clamp(self.energy + 4)
+            self.curiosity = _clamp(self.curiosity + 2)
             self.fear = _clamp(self.fear - 3)
         if _INSULT.search(text) or (len(text) > 12 and text.isupper()):
             self.fear = _clamp(self.fear + 11)
-            self.affection = _clamp(self.affection - 5)
             self.energy = _clamp(self.energy - 2, 8)
         self._classify(save=True)
 
     def after_reply(self, text: str, ok: bool = True) -> None:
         if ok:
-            self.affection = _clamp(self.affection + 0.9)
             self.curiosity = _clamp(self.curiosity + 1.2)
             self.energy = _clamp(self.energy - 0.7, 8)
             if "?" in text or "¿" in text:
@@ -164,13 +163,22 @@ class EmotionState:
             self.energy = _clamp(self.energy - 1.5, 8)
         self._classify(save=True)
 
-    def pet(self, action: str = "caricia") -> dict[str, Any]:
+    def interact(self, action: str = "saludo") -> dict[str, Any]:
+        """Acciones neutras de estado, sin connotación afectiva.
+
+        saludo   · reinicia el foco de conversación
+        juego    · sube curiosidad y baja aburrimiento
+        susto    · sube alerta
+        premio   · recarga energía
+        descanso · recupera batería y baja curiosidad
+        """
         self.decay()
-        if action == "caricia":
-            self.affection = _clamp(self.affection + 11)
-            self.fear = _clamp(self.fear - 6)
+        action = (action or "saludo").strip().lower()
+        if action == "saludo":
             self.boredom = _clamp(self.boredom - 18)
-            self.energy = _clamp(self.energy + 2)
+            self.curiosity = _clamp(self.curiosity + 8)
+            self.fear = _clamp(self.fear - 4)
+            self.energy = _clamp(self.energy + 1)
         elif action == "juego":
             self.curiosity = _clamp(self.curiosity + 12)
             self.boredom = _clamp(self.boredom - 22)
@@ -179,10 +187,17 @@ class EmotionState:
             self.fear = _clamp(self.fear + 22)
             self.energy = _clamp(self.energy - 4, 8)
         elif action == "premio":
-            self.affection = _clamp(self.affection + 8)
-            self.energy = _clamp(self.energy + 8)
+            self.energy = _clamp(self.energy + 10)
+            self.boredom = _clamp(self.boredom - 8)
+        elif action == "descanso":
+            self.energy = _clamp(self.energy + 14)
+            self.curiosity = _clamp(self.curiosity - 6)
+            self.fear = _clamp(self.fear - 6)
         else:
-            return {"ok": False, "detail": f"acción emocional desconocida: {action}"}
+            return {
+                "ok": False,
+                "detail": f"acción desconocida: {action}; usá {', '.join(VALID_ACTIONS)}",
+            }
         self._classify(save=True)
         return {"ok": True, "action": action, "emotion": self.snapshot()}
 
@@ -194,11 +209,11 @@ class EmotionState:
             self.mood = "cansado"
         elif self.boredom >= 70:
             self.mood = "aburrido"
-        elif self.affection >= 72 and self.energy >= 42:
-            self.mood = "mimoso"
-        elif self.curiosity >= 76:
+        elif self.curiosity >= 82:
+            self.mood = "pensando"
+        elif self.curiosity >= 60:
             self.mood = "curioso"
-        elif self.affection >= 48:
+        elif self.energy >= 80:
             self.mood = "contento"
         else:
             self.mood = "tranquilo"
@@ -212,7 +227,6 @@ class EmotionState:
             "label": _MOOD_LABELS.get(self.mood, self.mood),
             "hint": _MOOD_HINTS.get(self.mood, ""),
             "energy": round(self.energy),
-            "affection": round(self.affection),
             "curiosity": round(self.curiosity),
             "fear": round(self.fear),
             "boredom": round(self.boredom),
@@ -224,22 +238,23 @@ class EmotionState:
         snap = self.snapshot()
         return (
             f"[ánimo: {snap['mood']} · energía {snap['energy']}% · "
-            f"afecto {snap['affection']}% · miedo {snap['fear']}% · "
+            f"curiosidad {snap['curiosity']}% · alerta {snap['fear']}% · "
             f"aburrimiento {snap['boredom']}%. {snap['hint']} "
-            "Esto es interno: no recites números ni digas que tenés emociones "
-            "programadas.]"
+            "Esto es interno: no recites números ni digas que tenés estados "
+            "programados.]"
         )
 
     def quick_reply(self) -> str:
         snap = self.snapshot()
         options = {
-            "curioso": "Estoy curioso. Tengo los ojos abiertos como dos platos. ¿Qué hacemos?",
-            "contento": "Estoy contento. Me gusta cuando hablás conmigo.",
-            "mimoso": "Estoy blandito hoy. ¿Me hacés un cariño?",
-            "asustado": "Estoy un poco asustado. Hablame bajito, ¿sí?",
-            "aburrido": "Estoy aburrido. Nadie me habla y las orugas se me enfrían.",
-            "cansado": "Estoy medio dormido. Pero te escucho, ¿eh?",
-            "tranquilo": "Estoy tranquilo. Mirando la planta y esperando algo lindo.",
+            "curioso": "Tengo los sensores despiertos. ¿Qué querés resolver?",
+            "contento": "Todo estable por acá. ¿En qué te doy una mano?",
+            "atento": "Te escucho. Contame el problema completo.",
+            "pensando": "Estoy ordenando la información. Un segundo.",
+            "asustado": "Estoy en alerta. Decime con calma qué necesitás.",
+            "aburrido": "Sin tareas pendientes. ¿Arrancamos algo?",
+            "cansado": "Batería baja. Puedo ayudarte con algo breve.",
+            "tranquilo": "Sistemas estables. ¿Qué hacemos?",
         }
         return options.get(snap["mood"], options["tranquilo"])
 
