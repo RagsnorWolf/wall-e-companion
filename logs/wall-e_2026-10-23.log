@@ -1,0 +1,130 @@
+2026-10-23 22:41:00 | INFO     | __main__:initialize:70 - Initializing Wall-E Companion...
+2026-10-23 22:41:00 | INFO     | core.hardware:_load:311 - Hardware config loaded from E:\Proyecto Wall E\Software de Wall-E\config\hardware.yaml
+2026-10-23 22:41:00 | INFO     | __main__:initialize:74 - Hardware config loaded: esp32-s3 on COM3
+2026-10-23 22:41:00 | INFO     | core.serial_comm:connect:318 - Mock serial connected
+2026-10-23 22:41:00 | INFO     | core.state_machine:_set_mode:208 - Mode: booting -> idle
+2026-10-23 22:41:00 | INFO     | core.state_machine:start:84 - State machine started
+2026-10-23 22:41:00 | INFO     | core.personality:start:114 - Personality engine started
+2026-10-23 22:41:00 | INFO     | core.state_machine:_set_mood:221 - Mood: idle -> sleeping
+2026-10-23 22:41:00 | ERROR    | core.state_machine:_set_mood:232 - Mood callback error: SerialComm.move_servos() got an unexpected keyword argument 'speed'
+2026-10-23 22:41:00 | INFO     | core.state_machine:_set_mode:208 - Mode: idle -> sleeping
+2026-10-23 22:41:02 | INFO     | services.vision:_init_camera:132 - Camera opened: 640x480 @ 30.0fps
+2026-10-23 22:41:02 | WARNING  | services.vision:load_models:145 - YuNet model not found, using Haar cascade
+2026-10-23 22:41:02 | WARNING  | services.vision:load_models:158 - YOLOv8 model not found
+2026-10-23 22:41:02 | WARNING  | services.vision:load_models:166 - Emotion model not found
+2026-10-23 22:41:02 | INFO     | services.vision:start:85 - Vision service started
+2026-10-23 22:41:02 | INFO     | services.audio:start:417 - Mock audio service started
+2026-10-23 22:41:02 | INFO     | services.ai_engine:start:91 - AI Engine started
+2026-10-23 22:41:02 | INFO     | __main__:initialize:141 - All components initialized
+2026-10-23 22:41:02 | INFO     | __main__:main:227 - Running without web UI. Press Ctrl+C to stop.
+2026-10-23 22:41:02 | INFO     | __main__:shutdown:171 - Shutting down Wall-E Companion...
+2026-10-23 22:41:02 | INFO     | services.ai_engine:stop:108 - AI Engine stopped
+2026-10-23 22:41:02 | INFO     | core.personality:stop:126 - Personality engine stopped
+2026-10-23 22:41:02 | INFO     | core.state_machine:stop:97 - State machine stopped
+2026-10-23 22:41:02 | INFO     | services.vision:stop:103 - Vision service stopped
+2026-10-23 22:41:02 | INFO     | services.audio:stop:139 - Audio service stopped
+2026-10-23 22:41:02 | INFO     | core.serial_comm:disconnect:107 - Disconnected from serial port
+2026-10-23 22:41:02 | INFO     | __main__:shutdown:191 - Shutdown complete
+2026-10-23 22:46:38 | INFO     | __main__:initialize:70 - Initializing Wall-E Companion...
+2026-10-23 22:46:38 | INFO     | core.hardware:_load:311 - Hardware config loaded from E:\Proyecto Wall E\Software de Wall-E\config\hardware.yaml
+2026-10-23 22:46:38 | INFO     | __main__:initialize:74 - Hardware config loaded: esp32-s3 on COM3
+2026-10-23 22:46:38 | INFO     | core.serial_comm:connect:321 - Mock serial connected
+2026-10-23 22:46:38 | INFO     | core.state_machine:_set_mode:208 - Mode: booting -> idle
+2026-10-23 22:46:38 | INFO     | core.state_machine:start:84 - State machine started
+2026-10-23 22:46:38 | INFO     | core.personality:start:114 - Personality engine started
+2026-10-23 22:46:38 | INFO     | core.state_machine:_set_mood:221 - Mood: idle -> sleeping
+2026-10-23 22:46:38 | INFO     | core.state_machine:_set_mode:208 - Mode: idle -> sleeping
+2026-10-23 22:46:39 | INFO     | services.vision:_init_camera:132 - Camera opened: 640x480 @ 30.0fps
+2026-10-23 22:46:39 | WARNING  | services.vision:load_models:145 - YuNet model not found, using Haar cascade
+2026-10-23 22:46:39 | WARNING  | services.vision:load_models:158 - YOLOv8 model not found
+2026-10-23 22:46:39 | WARNING  | services.vision:load_models:166 - Emotion model not found
+2026-10-23 22:46:39 | INFO     | services.vision:start:85 - Vision service started
+2026-10-23 22:46:39 | INFO     | services.audio:start:417 - Mock audio service started
+2026-10-23 22:46:39 | INFO     | services.ai_engine:start:91 - AI Engine started
+2026-10-23 22:46:39 | INFO     | __main__:initialize:141 - All components initialized
+2026-10-23 22:46:39 | INFO     | __main__:main:227 - Running without web UI. Press Ctrl+C to stop.
+2026-10-23 22:46:39 | INFO     | __main__:shutdown:171 - Shutting down Wall-E Companion...
+2026-10-23 22:46:39 | INFO     | services.ai_engine:stop:108 - AI Engine stopped
+2026-10-23 22:46:39 | INFO     | core.personality:stop:126 - Personality engine stopped
+2026-10-23 22:46:39 | INFO     | core.state_machine:stop:97 - State machine stopped
+2026-10-23 22:46:39 | INFO     | services.vision:stop:103 - Vision service stopped
+2026-10-23 22:46:39 | INFO     | services.audio:stop:139 - Audio service stopped
+2026-10-23 22:46:39 | INFO     | core.serial_comm:disconnect:107 - Disconnected from serial port
+2026-10-23 22:46:39 | INFO     | __main__:shutdown:191 - Shutdown complete
+2026-10-23 22:47:12 | INFO     | __main__:initialize:70 - Initializing Wall-E Companion...
+2026-10-23 22:47:12 | INFO     | core.hardware:_load:311 - Hardware config loaded from E:\Proyecto Wall E\Software de Wall-E\config\hardware.yaml
+2026-10-23 22:47:12 | INFO     | __main__:initialize:74 - Hardware config loaded: esp32-s3 on COM3
+2026-10-23 22:47:12 | INFO     | core.serial_comm:connect:321 - Mock serial connected
+2026-10-23 22:47:12 | INFO     | core.state_machine:_set_mode:208 - Mode: booting -> idle
+2026-10-23 22:47:12 | INFO     | core.state_machine:start:84 - State machine started
+2026-10-23 22:47:12 | INFO     | core.personality:start:114 - Personality engine started
+2026-10-23 22:47:12 | INFO     | core.state_machine:_set_mood:221 - Mood: idle -> sleeping
+2026-10-23 22:47:12 | INFO     | core.state_machine:_set_mode:208 - Mode: idle -> sleeping
+2026-10-23 22:47:13 | INFO     | services.vision:_init_camera:132 - Camera opened: 640x480 @ 30.0fps
+2026-10-23 22:47:13 | WARNING  | services.vision:load_models:145 - YuNet model not found, using Haar cascade
+2026-10-23 22:47:13 | WARNING  | services.vision:load_models:158 - YOLOv8 model not found
+2026-10-23 22:47:13 | WARNING  | services.vision:load_models:166 - Emotion model not found
+2026-10-23 22:47:13 | INFO     | services.vision:start:85 - Vision service started
+2026-10-23 22:47:13 | INFO     | services.audio:start:417 - Mock audio service started
+2026-10-23 22:47:13 | INFO     | services.ai_engine:start:91 - AI Engine started
+2026-10-23 22:47:14 | INFO     | __main__:initialize:142 - All components initialized
+2026-10-23 22:47:14 | INFO     | __main__:main:228 - Running without web UI. Press Ctrl+C to stop.
+2026-10-23 22:47:33 | INFO     | __main__:initialize:70 - Initializing Wall-E Companion...
+2026-10-23 22:47:33 | INFO     | core.hardware:_load:311 - Hardware config loaded from E:\Proyecto Wall E\Software de Wall-E\config\hardware.yaml
+2026-10-23 22:47:33 | INFO     | __main__:initialize:74 - Hardware config loaded: esp32-s3 on COM3
+2026-10-23 22:47:33 | INFO     | core.serial_comm:connect:321 - Mock serial connected
+2026-10-23 22:47:33 | INFO     | core.state_machine:_set_mode:208 - Mode: booting -> idle
+2026-10-23 22:47:33 | INFO     | core.state_machine:start:84 - State machine started
+2026-10-23 22:47:33 | INFO     | core.personality:start:114 - Personality engine started
+2026-10-23 22:47:33 | INFO     | core.state_machine:_set_mood:221 - Mood: idle -> sleeping
+2026-10-23 22:47:33 | INFO     | core.state_machine:_set_mode:208 - Mode: idle -> sleeping
+2026-10-23 22:47:34 | INFO     | services.vision:_init_camera:132 - Camera opened: 640x480 @ 30.0fps
+2026-10-23 22:47:34 | WARNING  | services.vision:load_models:145 - YuNet model not found, using Haar cascade
+2026-10-23 22:47:34 | WARNING  | services.vision:load_models:158 - YOLOv8 model not found
+2026-10-23 22:47:34 | WARNING  | services.vision:load_models:166 - Emotion model not found
+2026-10-23 22:47:34 | INFO     | services.vision:start:85 - Vision service started
+2026-10-23 22:47:34 | INFO     | services.audio:start:417 - Mock audio service started
+2026-10-23 22:47:34 | INFO     | services.ai_engine:start:91 - AI Engine started
+2026-10-23 22:47:34 | INFO     | __main__:initialize:142 - All components initialized
+2026-10-23 22:47:34 | INFO     | __main__:run:160 - Wall-E Companion running. Press Ctrl+C to stop.
+2026-10-23 23:00:06 | INFO     | __main__:initialize:70 - Initializing Wall-E Companion...
+2026-10-23 23:00:06 | INFO     | core.hardware:_load:311 - Hardware config loaded from E:\Proyecto Wall E\Software de Wall-E\config\hardware.yaml
+2026-10-23 23:00:06 | INFO     | __main__:initialize:74 - Hardware config loaded: esp32-s3 on COM3
+2026-10-23 23:00:06 | ERROR    | core.serial_comm:connect:81 - Failed to connect to COM3: could not open port 'COM3': FileNotFoundError(2, 'El sistema no puede encontrar el archivo especificado.', None, 2)
+2026-10-23 23:00:06 | WARNING  | __main__:initialize:85 - Failed to connect to hardware, falling back to mock mode
+2026-10-23 23:00:06 | INFO     | core.serial_comm:disconnect:107 - Disconnected from serial port
+2026-10-23 23:00:06 | INFO     | core.serial_comm:connect:321 - Mock serial connected
+2026-10-23 23:00:06 | INFO     | core.state_machine:_set_mode:208 - Mode: booting -> idle
+2026-10-23 23:00:06 | INFO     | core.state_machine:start:84 - State machine started
+2026-10-23 23:00:06 | INFO     | core.personality:start:114 - Personality engine started
+2026-10-23 23:00:06 | INFO     | core.state_machine:_set_mood:221 - Mood: idle -> sleeping
+2026-10-23 23:00:06 | INFO     | core.state_machine:_set_mode:208 - Mode: idle -> sleeping
+2026-10-23 23:00:07 | INFO     | services.vision:_init_camera:132 - Camera opened: 640x480 @ 30.0fps
+2026-10-23 23:00:07 | WARNING  | services.vision:load_models:145 - YuNet model not found, using Haar cascade
+2026-10-23 23:00:07 | WARNING  | services.vision:load_models:158 - YOLOv8 model not found
+2026-10-23 23:00:07 | WARNING  | services.vision:load_models:166 - Emotion model not found
+2026-10-23 23:00:07 | INFO     | services.vision:start:85 - Vision service started
+2026-10-23 23:00:08 | INFO     | services.audio:_init_pyaudio:170 - PyAudio streams started
+2026-10-23 23:00:17 | INFO     | services.audio:_init_models:242 - Whisper model loaded: base
+2026-10-23 23:00:17 | INFO     | services.audio:start:112 - Audio service started
+2026-10-23 23:00:17 | INFO     | services.ai_engine:start:91 - AI Engine started
+2026-10-23 23:00:17 | INFO     | __main__:initialize:142 - All components initialized
+2026-10-23 23:00:17 | INFO     | __main__:run:160 - Wall-E Companion running. Press Ctrl+C to stop.
+2026-10-23 23:03:39 | INFO     | __main__:initialize:70 - Initializing Wall-E Companion...
+2026-10-23 23:03:39 | INFO     | core.hardware:_load:311 - Hardware config loaded from E:\Proyecto Wall E\Software de Wall-E\config\hardware.yaml
+2026-10-23 23:03:39 | INFO     | __main__:initialize:74 - Hardware config loaded: esp32-s3 on COM3
+2026-10-23 23:03:39 | ERROR    | core.serial_comm:connect:81 - Failed to connect to COM3: could not open port 'COM3': FileNotFoundError(2, 'El sistema no puede encontrar el archivo especificado.', None, 2)
+2026-10-23 23:03:39 | WARNING  | __main__:initialize:85 - Failed to connect to hardware, falling back to mock mode
+2026-10-23 23:03:39 | INFO     | core.serial_comm:disconnect:107 - Disconnected from serial port
+2026-10-23 23:03:39 | INFO     | core.serial_comm:connect:321 - Mock serial connected
+2026-10-23 23:03:39 | INFO     | core.state_machine:_set_mode:208 - Mode: booting -> idle
+2026-10-23 23:03:39 | INFO     | core.state_machine:start:84 - State machine started
+2026-10-23 23:03:39 | INFO     | core.personality:start:114 - Personality engine started
+2026-10-23 23:03:39 | INFO     | core.state_machine:_set_mood:221 - Mood: idle -> sleeping
+2026-10-23 23:03:39 | INFO     | core.state_machine:_set_mode:208 - Mode: idle -> sleeping
+2026-10-23 23:03:41 | INFO     | services.vision:_init_camera:132 - Camera opened: 640x480 @ 30.0fps
+2026-10-23 23:03:41 | WARNING  | services.vision:load_models:145 - YuNet model not found, using Haar cascade
+2026-10-23 23:03:41 | WARNING  | services.vision:load_models:158 - YOLOv8 model not found
+2026-10-23 23:03:41 | WARNING  | services.vision:load_models:166 - Emotion model not found
+2026-10-23 23:03:41 | INFO     | services.vision:start:85 - Vision service started
+2026-10-23 23:03:41 | INFO     | services.audio:_init_pyaudio:170 - PyAudio streams started

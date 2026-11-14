@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wall-E Companion - Cockpit</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <h1>🤖 Wall-E Companion</h1>
+            <div class="connection-status" id="connectionStatus">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Conectando...</span>
+            </div>
+        </header>
+
+        <main class="main">
+            <div class="grid">
+                <!-- Left Panel: Robot State -->
+                <section class="panel">
+                    <h2>Estado del Robot</h2>
+                    <div class="status-grid">
+                        <div class="status-card">
+                            <span class="label">Modo</span>
+                            <span class="value" id="mode">-</span>
+                        </div>
+                        <div class="status-card">
+                            <span class="label">Estado de ánimo</span>
+                            <span class="value" id="mood">-</span>
+                        </div>
+                        <div class="status-card">
+                            <span class="label">Batería</span>
+                            <div class="battery">
+                                <div class="battery-bar" id="batteryBar"></div>
+                                <span class="battery-text" id="batteryText">--%</span>
+                            </div>
+                        </div>
+                        <div class="status-card">
+                            <span class="label">Voltaje</span>
+                            <span class="value" id="voltage">-- V</span>
+                        </div>
+                        <div class="status-card">
+                            <span class="label">Temperatura</span>
+                            <span class="value" id="temp">-- °C</span>
+                        </div>
+                        <div class="status-card">
+                            <span class="label">Uptime</span>
+                            <span class="value" id="uptime">--</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Center Panel: Servo Control -->
+                <section class="panel">
+                    <h2>Control de Servos</h2>
+                    <div class="servo-grid" id="servoGrid">
+                        <!-- Servo sliders generated dynamically -->
+                    </div>
+                    <div class="mood-buttons">
+                        <button class="mood-btn" data-mood="idle">Idle</button>
+                        <button class="mood-btn" data-mood="curious">Curioso</button>
+                        <button class="mood-btn" data-mood="happy">Feliz</button>
+                        <button class="mood-btn" data-mood="sad">Triste</button>
+                        <button class="mood-btn" data-mood="alert">Alerta</button>
+                        <button class="mood-btn" data-mood="thinking">Pensando</button>
+                        <button class="mood-btn" data-mood="sleeping">Durmiendo</button>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn btn-danger" id="emergencyStop">🛑 EMERGENCY STOP</button>
+                        <button class="btn btn-warning" id="resetBtn">🔄 Reset</button>
+                    </div>
+                </section>
+
+                <!-- Right Panel: Personality & AI -->
+                <section class="panel">
+                    <h2>Personalidad & IA</h2>
+                    
+                    <div class="section">
+                        <h3>Rasgos de Personalidad</h3>
+                        <div class="trait-grid" id="traitGrid">
+                            <!-- Traits generated dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h3>Hablar</h3>
+                        <div class="speak-input">
+                            <input type="text" id="speakText" placeholder="Escribe lo que debe decir Wall-E...">
+                            <button class="btn" id="speakBtn">🔊 Hablar</button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h3>Acciones IA</h3>
+                        <div class="ai-buttons">
+                            <button class="btn" id="greetBtn">👋 Saludar</button>
+                            <button class="btn" id="celebrateBtn">🎉 Celebrar</button>
+                            <button class="btn" id="surpriseBtn">😲 Sorprender</button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h3>Conversación</h3>
+                        <div id="conversationLog" class="conversation-log">
+                            <div class="log-entry system">Sistema iniciado. Esperando interacción...</div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Bottom Panel: Camera Feed (if available) -->
+            <section class="panel camera-panel">
+                <h2>Visión</h2>
+                <div class="camera-container">
+                    <canvas id="cameraCanvas" width="640" height="480"></canvas>
+                    <div class="camera-overlay" id="cameraOverlay"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

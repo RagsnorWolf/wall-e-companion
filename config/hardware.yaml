@@ -1,0 +1,201 @@
+# Hardware Configuration — Wall-E Companion Software
+# Mirrors Robot Wall-E/hardware_specs.yaml — update both together
+
+mcu:
+  type: "esp32-s3"
+  port: "COM3"                    # Windows: COM3, Linux: /dev/ttyUSB0, Mac: /dev/tty.usbserial-XXXX
+  baudrate: 115200
+  protocol: "json_serial"         # json_serial | mqtt | protobuf
+  timeout: 1.0                    # Serial read timeout (seconds)
+  reconnect_interval: 5.0         # Auto-reconnect interval (seconds)
+
+servos:
+  - id: "head_pan"
+    channel: 0
+    min_pulse: 500
+    max_pulse: 2500
+    angle_range: [-90, 90]
+    default_angle: 0
+    inverted: false
+    speed: 100                    # Default speed (0-255)
+  - id: "head_tilt"
+    channel: 1
+    min_pulse: 500
+    max_pulse: 2500
+    angle_range: [-45, 45]
+    default_angle: 0
+    inverted: false
+    speed: 100
+  - id: "eye_L"
+    channel: 2
+    min_pulse: 500
+    max_pulse: 2500
+    angle_range: [0, 100]
+    default_angle: 50
+    inverted: false
+    speed: 150
+  - id: "eye_R"
+    channel: 3
+    min_pulse: 500
+    max_pulse: 2500
+    angle_range: [0, 100]
+    default_angle: 50
+    inverted: false
+    speed: 150
+  - id: "body_lean"
+    channel: 4
+    min_pulse: 500
+    max_pulse: 2500
+    angle_range: [-30, 30]
+    default_angle: 0
+    inverted: false
+    speed: 80
+  - id: "arm_L"
+    channel: 5
+    min_pulse: 500
+    max_pulse: 2500
+    angle_range: [-90, 90]
+    default_angle: 0
+    inverted: false
+    speed: 60
+  - id: "arm_R"
+    channel: 6
+    min_pulse: 500
+    max_pulse: 2500
+    angle_range: [-90, 90]
+    default_angle: 0
+    inverted: false
+    speed: 60
+
+# Predefined mood poses (servo angles)
+moods:
+  idle:
+    head_pan: 0
+    head_tilt: 0
+    eye_L: 50
+    eye_R: 50
+    body_lean: 0
+    arm_L: 0
+    arm_R: 0
+  curious:
+    head_pan: 15
+    head_tilt: -10
+    eye_L: 70
+    eye_R: 70
+    body_lean: 5
+    arm_L: 10
+    arm_R: -10
+  happy:
+    head_pan: -10
+    head_tilt: 15
+    eye_L: 80
+    eye_R: 80
+    body_lean: -5
+    arm_L: 30
+    arm_R: -30
+  sad:
+    head_pan: 0
+    head_tilt: -30
+    eye_L: 20
+    eye_R: 20
+    body_lean: 10
+    arm_L: -20
+    arm_R: -20
+  alert:
+    head_pan: 0
+    head_tilt: 20
+    eye_L: 90
+    eye_R: 90
+    body_lean: 0
+    arm_L: 0
+    arm_R: 0
+  thinking:
+    head_pan: -20
+    head_tilt: -15
+    eye_L: 40
+    eye_R: 60
+    body_lean: 5
+    arm_L: -10
+    arm_R: 10
+  sleeping:
+    head_pan: 0
+    head_tilt: -45
+    eye_L: 0
+    eye_R: 0
+    body_lean: 15
+    arm_L: -45
+    arm_R: -45
+
+camera:
+  type: "usb"
+  device_index: 0
+  width: 640
+  height: 480
+  fps: 30
+  format: "MJPG"
+  auto_exposure: true
+  auto_white_balance: true
+
+audio:
+  mic:
+    type: "i2s"
+    sample_rate: 16000
+    channels: 1
+    chunk_size: 1024
+    device_index: null            # null = default
+  speaker:
+    type: "i2s"
+    sample_rate: 22050
+    channels: 1
+    chunk_size: 1024
+    device_index: null
+    volume: 0.8                   # 0.0 - 1.0
+
+power:
+  battery_type: "liion_2s"
+  voltage_monitor: "ina219"
+  adc_pin: 4
+  min_voltage: 6.5
+  max_voltage: 8.4
+  low_alert_voltage: 7.0
+  critical_voltage: 6.5
+  update_interval: 1.0            # Battery check interval (seconds)
+
+sensors:
+  tof: "vl53l0x"
+  imu: "mpu6050"
+  temp: "internal"
+  i2c_address: 0x29               # VL53L0X default
+  imu_address: 0x68               # MPU6050 default
+
+# Software behavior
+behavior:
+  idle_timeout: 30.0              # Seconds before returning to idle mood
+  watchdog_timeout: 5.0           # Seconds without command before emergency stop
+  max_servo_speed: 200            # Global max speed
+  smoothing_factor: 0.15          # Servo interpolation smoothing (0-1)
+  enable_collision_avoidance: true
+  tof_threshold_mm: 200           # Obstacle detection distance
+
+# AI Models
+models:
+  whisper:
+    model_size: "base"            # tiny, base, small, medium, large
+    language: "es"
+    device: "cpu"                 # cpu, cuda
+  piper_tts:
+    voice: "es_ES-sharvard-medium"
+    length_scale: 1.0
+    noise_scale: 0.667
+    noise_w: 0.8
+  vision:
+    detection_model: "yolov8n.onnx"
+    emotion_model: "fer2013_mini.onnx"
+    face_model: "yolov8n-face.onnx"
+
+# Web UI
+web_ui:
+  host: "0.0.0.0"
+  port: 5173
+  ws_port: 5174
+  cors_origins: ["*"]

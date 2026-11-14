@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  wall-e:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wall-e-companion
+    restart: unless-stopped
+    ports:
+      - "5173:5173"   # Web UI
+      - "5174:5174"   # WebSocket
+    volumes:
+      - ./config:/app/config:ro
+      - ./models:/app/models:ro
+      - ./sounds:/app/sounds:ro
+      - ./logs:/app/logs
+      - /dev/bus/usb:/dev/bus/usb  # USB camera access
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"  # ESP32 serial (adjust as needed)
+      - "/dev/video0:/dev/video0"    # Camera
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=America/Argentina/Buenos_Aires
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # Optional: Mock mode for development without hardware
+  wall-e-mock:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wall-e-mock
+    restart: unless-stopped
+    ports:
+      - "5174:5173"   # Web UI on different port
+    volumes:
+      - ./config:/app/config:ro
+      - ./models:/app/models:ro
+      - ./sounds:/app/sounds:ro
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=America/Argentina/Buenos_Aires
+    command: ["python", "main.py", "--mock", "--no-web"]
+    profiles:
+      - dev
+
+  # Optional: Model downloader
+  model-setup:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wall-e-model-setup
+    volumes:
+      - ./models:/app/models
+    command: >
+      bash -c "
+        pip install huggingface_hub &&
+        python -c '
+from huggingface_hub import hf_hub_download
+import os
+os.makedirs(\"/app/models\", exist_ok=True)
+# Download Whisper base model (faster-whisper handles this automatically)
+print(\"Models will be downloaded on first run by faster-whisper and piper-tts\")
+'
+      "
+    profiles:
+      - setup
+
+networks:
+  default:
+    name: wall-e-network
