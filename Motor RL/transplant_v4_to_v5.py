@@ -115,6 +115,10 @@ def main() -> int:
         fresh.append(key)
 
     model.policy.load_state_dict(merged)
+    # El contador de pasos se arrastra del V4: si queda en 0, el proximo
+    # --resume cree que el cerebro es nuevo y las estadisticas mienten.
+    model.num_timesteps = int(v4.num_timesteps)
+    model._total_timesteps = int(v4.num_timesteps)
     print(f"  pesos copiados: {len(copied)}")
     print(f"  entrada ensanchada: {len(widened)}")
     for key, old, new in widened:
