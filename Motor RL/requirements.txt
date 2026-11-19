@@ -1,0 +1,21 @@
+# WALL-E · Fase 2 — Cerebro Motor
+# Instalar con:  python -m pip install -r requirements.txt
+# Probado con Python 3.10 - 3.12 (64 bits).
+
+# Entorno de Reinforcement Learning
+gymnasium>=0.29.1
+stable-baselines3>=2.3.0
+shimmy>=2.0.0
+
+# Simulador físico
+pybullet>=3.2.6
+
+# Cálculo numérico y red neuronal
+numpy>=1.26
+torch>=2.2
+
+# Curvas de entrenamiento (opcional pero recomendado)
+tensorboard>=2.15
+
+# Conversión GLB -> OBJ del modelo de la Fase 1 (opcional)
+trimesh>=4.0
