@@ -1,4 +1,4 @@
-"""
+r"""
 transplant_v4_to_v5.py -- arrancar el cerebro V5 con lo que ya sabe el V4.
 
 El problema: V5 observa 58 numeros (14 base + 36 LiDAR + 8 extras) y V4
@@ -29,6 +29,12 @@ import torch
 from sb3_contrib import RecurrentPPO
 
 from walle_env_v3 import WallEEnvV3
+
+# Inferencia de una sola muestra. Con los 8 hilos por defecto en un Ryzen de 4
+# nucleos, el LSTM pasa mas tiempo sincronizando hilos que multiplicando: cada
+# predict tardaba ~1.5 s. Con un hilo baja a milisegundos. No hay entrenamiento
+# en este script, asi que no se pierde nada.
+torch.set_num_threads(1)
 
 POLICY_KWARGS = dict(
     net_arch=[256, 256],

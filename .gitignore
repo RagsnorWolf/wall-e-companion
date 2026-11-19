@@ -71,3 +71,29 @@ desktop.ini
 # ---------- Logs ----------
 logs/
 *.log
+
+# ---------- Motor RL: entorno virtual y basura de Python ----------
+Motor RL/.venv/
+Motor RL/__pycache__/
+Motor RL/**/__pycache__/
+
+# ---------- Motor RL: artefactos de entrenamiento ----------
+# Cada modelo pesa ~10 MB y hay decenas. Se regeneran entrenando
+# (train_walle_v5.py) y no aportan al historial de git.
+Motor RL/models/
+Motor RL/checkpoints/
+Motor RL/checkpoints_v2/
+Motor RL/tb_logs/
+Motor RL/tb_logs_v2/
+Motor RL/reports/
+Motor RL/feedback_walle/
+Motor RL/deploy/
+
+# ---------- Motor RL: zips de politica sueltos en la raiz ----------
+# ~460 KB cada uno x 15, todos versiones viejas del cerebro.
+Motor RL/walle_ppo_model*.zip
+Motor RL/Motor RL.zip
+
+# ---------- Motor RL: logs de entrenamiento ----------
+Motor RL/*.err
+Motor RL/*.err.log
