@@ -5,6 +5,9 @@
 # Entorno de Reinforcement Learning
 gymnasium>=0.29.1
 stable-baselines3>=2.3.0
+# RecurrentPPO (LSTM) vive en sb3-contrib, no en stable-baselines3.
+# Sin esto el modo PPO del simulador no carga.
+sb3-contrib>=2.3.0
 shimmy>=2.0.0
 
 # Simulador físico
